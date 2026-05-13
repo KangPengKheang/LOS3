@@ -1,5 +1,10 @@
 {
-  "buildCommand": "cd frontend && npm install && npm run build",
-  "outputDirectory": "frontend/dist",
-  "framework": "vite"
+  "name": "los3-dashboard-root",
+  "private": true,
+  "scripts": {
+    "setup": "cd frontend && npm install --no-audit --no-fund",
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "preview": "cd frontend && npm run preview"
+  }
 }

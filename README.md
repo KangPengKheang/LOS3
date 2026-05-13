@@ -1,14 +1,14 @@
-# LOS Workflow Case Monitoring Dashboard
+# LOS Case Monitoring Dashboard
 
-React + Vite dashboard using Google Sheet as database through Google Apps Script Web App.
+React + Vite dashboard using Google Sheet as the database through Google Apps Script Web App.
 
-## Main changes
+This version includes the follow-up remark workflow:
 
-- No left sidebar.
-- Workflow `STATUS` is treated as a process stage: RM Submission, BM Review, Credit Assessment, Credit Operation, Approval Committee, Legal & Documentation, Disbursement Preparation, Drawdown, Returned to RM, Rejected, Cancelled.
-- Table includes two day columns:
-  - `Process Days`: days in the current process/stage. The app checks `CURRENT_STEP_START_DATE`, `PROCESS_START_DATE`, or `STATUS_START_DATE`. If none exists, it falls back to overall LOS days.
-  - `LOS Days`: total days from `APPLICATION_DATE` to `APPROVED_DATE` for Drawdown/completed cases, otherwise from `APPLICATION_DATE` to `REPORT_DATE` or today.
+- Click customer name to open case details
+- Add follow-up remark for unremarked cases
+- Edit follow-up remark for already remarked cases
+- Green `Remarked` indicator in the case table
+- Save remarks back to Google Sheet through Apps Script `doPost`
 
 ## Local run
 
@@ -23,38 +23,54 @@ Open:
 http://localhost:5173
 ```
 
-## Google Sheet API
-
-Create `frontend/.env` from `frontend/.env.example` and paste your Apps Script Web App URL:
+For Google Sheet data, create `frontend/.env` and add:
 
 ```env
 VITE_SHEET_API_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
 ```
 
-If this is blank, the app uses built-in sample workflow data.
+If the variable is blank, the dashboard uses built-in sample data.
 
 ## Vercel deployment
 
-Add the environment variable in Vercel:
+The project is configured to deploy from the root folder.
+
+Recommended Vercel settings:
+
+```text
+Root Directory: ./
+Install Command: cd frontend && npm install --no-audit --no-fund
+Build Command: cd frontend && npm run build
+Output Directory: frontend/dist
+```
+
+Also add this Vercel Environment Variable:
 
 ```env
 VITE_SHEET_API_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
 ```
 
-This ZIP already includes root `vercel.json`.
+Then redeploy.
 
-## Google Sheet tab
+## Google Sheet
 
-Main tab name must be:
+The main sheet tab must be named:
 
 ```text
 LOS_Data
 ```
 
-Header row should use your LOS column names. Optional columns for better process day calculation:
+Paste `google-apps-script/Code.gs` into:
 
 ```text
-CURRENT_STEP_START_DATE
-PROCESS_START_DATE
-STATUS_START_DATE
+Google Sheet → Extensions → Apps Script → Code.gs
 ```
+
+Deploy as Web App:
+
+```text
+Execute as: Me
+Who has access: Anyone
+```
+
+After changing Apps Script code, deploy a new version.

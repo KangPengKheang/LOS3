@@ -4,7 +4,7 @@
 
 // Optional but recommended: paste your Google Sheet ID here.
 // If this is left blank, the script will try to use the spreadsheet attached to this Apps Script project.
-const SPREADSHEET_ID = "1Aad1I6a6bO8F_4Fn3IYwDOutd1dvGRvmeEQNMFlVCG8";
+const SPREADSHEET_ID = "";
 const SHEET_NAME = "LOS_Data";
 
 const REMARK_COLUMNS = [
