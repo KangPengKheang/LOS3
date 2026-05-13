@@ -1,10 +1,5 @@
 {
-  "name": "los-dashboard-vite-workflow-root",
-  "private": true,
-  "scripts": {
-    "setup": "cd frontend && npm install",
-    "dev": "cd frontend && npm run dev",
-    "build": "cd frontend && npm run build",
-    "preview": "cd frontend && npm run preview"
-  }
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/dist",
+  "framework": "vite"
 }
