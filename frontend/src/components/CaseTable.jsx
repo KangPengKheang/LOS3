@@ -60,9 +60,7 @@ export default function CaseTable({ rows, onSelectCase, selectedCase }) {
                       <span>Remarked</span>
                     </button>
                   ) : (
-                    <button type="button" className="add-remark-mini" onClick={() => onSelectCase(row)}>
-                      Add
-                    </button>
+                    <span className="remark-empty">-</span>
                   )}
                 </td>
               </tr>

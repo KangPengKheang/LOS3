@@ -1,24 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
-  BarChart3,
   Bell,
-  Box,
-  BriefcaseBusiness,
   CalendarDays,
   CheckCircle2,
   Clock3,
   Database,
   DollarSign,
-  FileText,
-  Folder,
   FolderOpen,
-  Gauge,
-  LogOut,
-  PieChart,
   RefreshCw,
-  Settings,
-  Users,
 } from 'lucide-react';
 import KpiCard from './components/KpiCard.jsx';
 import FilterBar from './components/FilterBar.jsx';
@@ -63,19 +53,6 @@ function exportCsv(rows) {
   a.click();
   URL.revokeObjectURL(url);
 }
-
-const navItems = [
-  { label: 'Dashboard', icon: Gauge, active: true },
-  { label: 'Cases', icon: Folder },
-  { label: 'Applications', icon: FileText },
-  { label: 'Customers', icon: Users },
-  { label: 'Products', icon: Box },
-  { label: 'Reports', icon: BarChart3 },
-  { label: 'Performance', icon: PieChart },
-  { label: 'Alerts', icon: Bell },
-  { label: 'Users', icon: Users },
-  { label: 'Settings', icon: Settings },
-];
 
 export default function App() {
   const [cases, setCases] = useState([]);
@@ -185,27 +162,6 @@ export default function App() {
 
   return (
     <div className="layout-shell">
-      <aside className="sidebar">
-        <div className="sidebar-logo">
-          <BriefcaseBusiness size={30} />
-          <span>LOS</span>
-        </div>
-
-        <nav className="sidebar-nav" aria-label="Main navigation">
-          {navItems.map(({ label, icon: Icon, active }) => (
-            <button key={label} className={`nav-item ${active ? 'active' : ''}`} type="button">
-              <Icon size={20} />
-              <span>{label}</span>
-            </button>
-          ))}
-        </nav>
-
-        <button className="logout-btn" type="button">
-          <LogOut size={20} />
-          <span>Logout</span>
-        </button>
-      </aside>
-
       <main className="app-shell">
         <header className="topbar">
           <div className="brand-block">
@@ -227,7 +183,7 @@ export default function App() {
           <div className="toast-success">
             <CheckCircle2 size={20} />
             <span>{toast}</span>
-            <button type="button" onClick={() => setToast('')}>×</button>
+            <button type="button" onClick={() => setToast('')} aria-label="Close toast">x</button>
           </div>
         ) : null}
 
