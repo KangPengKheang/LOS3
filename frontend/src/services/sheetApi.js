@@ -2,12 +2,26 @@ import { sampleCases } from '../data/sampleData.js';
 
 const API_URL = import.meta.env.VITE_SHEET_API_URL || '';
 
+function getSheetApiUrl() {
+  const url = API_URL.trim();
+
+  if (url.includes('script.googleusercontent.com/macros/echo')) {
+    throw new Error(
+      'VITE_SHEET_API_URL must be the Apps Script Web App URL ending in /exec, not the redirected googleusercontent.com/macros/echo URL.'
+    );
+  }
+
+  return url;
+}
+
 export async function fetchLosCases() {
-  if (!API_URL.trim()) {
+  const apiUrl = getSheetApiUrl();
+
+  if (!apiUrl) {
     return { data: sampleCases, source: 'sample' };
   }
 
-  const response = await fetch(API_URL, {
+  const response = await fetch(apiUrl, {
     method: 'GET',
     redirect: 'follow',
   });
@@ -24,7 +38,9 @@ export async function fetchLosCases() {
 }
 
 export async function saveCaseRemark({ applicationId, remark, updatedBy, updatedAt }) {
-  if (!API_URL.trim()) {
+  const apiUrl = getSheetApiUrl();
+
+  if (!apiUrl) {
     return { success: true, source: 'sample' };
   }
 
@@ -36,7 +52,7 @@ export async function saveCaseRemark({ applicationId, remark, updatedBy, updated
     updatedAt,
   };
 
-  const response = await fetch(API_URL, {
+  const response = await fetch(apiUrl, {
     method: 'POST',
     redirect: 'follow',
     // Keep as text/plain to avoid browser preflight issues with Apps Script.
