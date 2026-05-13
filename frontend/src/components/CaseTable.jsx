@@ -1,11 +1,31 @@
-import React from 'react';
-import { MessageCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Clock, MessageCircle, UserRound } from 'lucide-react';
 import StatusBadge from './StatusBadge.jsx';
 import { formatCurrency } from '../utils/format.js';
-import { getLosDays, getProcessDays } from '../utils/dateUtils.js';
-import { hasRemark } from '../utils/remarks.js';
+import { formatDateTime, getLosDays, getProcessDays } from '../utils/dateUtils.js';
+import { getRemarkText, hasRemark } from '../utils/remarks.js';
+
+function RemarkPreviewPopover({ row }) {
+  const remark = getRemarkText(row);
+
+  return (
+    <div className="remark-popover" role="tooltip">
+      <div className="remark-popover-head">
+        <MessageCircle size={16} />
+        <strong>Follow-up Remark</strong>
+      </div>
+      <p>{remark}</p>
+      <div className="remark-popover-meta">
+        <span><UserRound size={14} /> {row.REMARK_UPDATED_BY || row.LAST_REMARK_BY || 'Unknown user'}</span>
+        <span><Clock size={14} /> {formatDateTime(row.REMARK_UPDATED_AT || row.LAST_REMARK_AT)}</span>
+      </div>
+    </div>
+  );
+}
 
 export default function CaseTable({ rows, onSelectCase, selectedCase }) {
+  const [pinnedRemarkId, setPinnedRemarkId] = useState('');
+
   return (
     <div className="table-wrap">
       <table className="case-table">
@@ -28,13 +48,15 @@ export default function CaseTable({ rows, onSelectCase, selectedCase }) {
           {rows.map((row, index) => {
             const remarked = hasRemark(row);
             const isSelected = selectedCase?.APPLICATION_NUMBER_ID === row.APPLICATION_NUMBER_ID;
+            const applicationId = row.APPLICATION_NUMBER_ID;
+            const isRemarkPinned = pinnedRemarkId === applicationId;
 
             return (
               <tr
-                key={`${row.APPLICATION_NUMBER_ID}-${index}`}
+                key={`${applicationId}-${index}`}
                 className={`${isSelected ? 'selected-row' : ''} ${remarked ? 'remarked-row' : ''}`}
               >
-                <td className="mono">{row.APPLICATION_NUMBER_ID}</td>
+                <td className="mono">{applicationId}</td>
                 <td>
                   <button
                     type="button"
@@ -55,10 +77,22 @@ export default function CaseTable({ rows, onSelectCase, selectedCase }) {
                 <td className="days-cell los-days">{getLosDays(row)}</td>
                 <td>
                   {remarked ? (
-                    <button type="button" className="remark-badge" onClick={() => onSelectCase(row)}>
-                      <MessageCircle size={15} />
-                      <span>Remarked</span>
-                    </button>
+                    <div className={`remark-viewer ${isRemarkPinned ? 'is-open' : ''}`}>
+                      <button
+                        type="button"
+                        className="remark-badge"
+                        aria-label={`View saved remark for ${row.CUSTOMER_NAME || applicationId}`}
+                        aria-expanded={isRemarkPinned}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setPinnedRemarkId(current => (current === applicationId ? '' : applicationId));
+                        }}
+                      >
+                        <MessageCircle size={15} />
+                        <span>Remarked</span>
+                      </button>
+                      <RemarkPreviewPopover row={row} />
+                    </div>
                   ) : (
                     <span className="remark-empty">-</span>
                   )}

@@ -209,7 +209,7 @@ export default function App() {
               <p>Core view: monitor where each case currently stands by workflow STATUS.</p>
               <div className="helper-note">
                 <AlertCircle size={16} />
-                <span>Click customer name to view case details and add follow-up remark.</span>
+                <span>Click customer name to add or edit remark. Hover or click Remarked to view the saved detail.</span>
               </div>
             </div>
             <button className="refresh-btn" onClick={loadData} disabled={loading}><RefreshCw size={16} /> Refresh</button>

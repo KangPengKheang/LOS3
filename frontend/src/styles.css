@@ -128,7 +128,7 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
   border-radius: 24px;
   background: var(--card);
   box-shadow: 0 18px 40px rgba(15, 23, 42, .08);
-  overflow: hidden;
+  overflow: visible;
 }
 .panel-head {
   padding: 24px 26px 10px;
@@ -181,7 +181,12 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
 .select-input { min-width: 160px; }
 .search-input:focus, .select-input:focus { border-color: #93b7ff; box-shadow: 0 0 0 4px rgba(20, 99, 216, .10); }
 
-.table-wrap { position: relative; overflow-x: auto; border-top: 1px solid var(--line); }
+.table-wrap {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: visible;
+  border-top: 1px solid var(--line);
+}
 .case-table { width: 100%; border-collapse: collapse; min-width: 1400px; }
 .case-table th {
   text-align: left;
@@ -261,6 +266,87 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
   border: 1px solid #bde8cf;
   background: #f0fbf5;
   color: var(--green);
+}
+.remark-badge:hover,
+.remark-badge:focus-visible {
+  border-color: #82d7a6;
+  background: #e5f8ee;
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(18, 129, 67, .10);
+}
+.remark-viewer {
+  position: relative;
+  width: max-content;
+}
+.remark-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  z-index: 35;
+  width: min(380px, calc(100vw - 56px));
+  padding: 14px 16px;
+  border: 1px solid #c8ead6;
+  border-radius: 12px;
+  background: white;
+  color: #142442;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, .18);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity .14s ease, transform .14s ease, visibility .14s ease;
+  pointer-events: none;
+  text-align: left;
+}
+.remark-viewer:hover .remark-popover,
+.remark-viewer:focus-within .remark-popover,
+.remark-viewer.is-open .remark-popover {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.remark-popover::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: 28px;
+  width: 12px;
+  height: 12px;
+  border-left: 1px solid #c8ead6;
+  border-top: 1px solid #c8ead6;
+  background: white;
+  transform: rotate(45deg);
+}
+.remark-popover-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--green);
+}
+.remark-popover-head strong {
+  font-size: 14px;
+}
+.remark-popover p {
+  margin: 10px 0 12px;
+  max-height: 150px;
+  overflow-y: auto;
+  color: #17233f;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.remark-popover-meta {
+  display: grid;
+  gap: 7px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  color: #66738c;
+  font-size: 12px;
+}
+.remark-popover-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .remark-empty {
   display: inline-flex;
