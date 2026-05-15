@@ -27,5 +27,10 @@ export function getStatusClass(status = '') {
 }
 
 export default function StatusBadge({ status }) {
-  return <span className={`status-badge ${getStatusClass(status)}`}>{status || '-'}</span>;
+  const label = status || '-';
+  return (
+    <span className={`status-badge ${getStatusClass(status)}`} title={label}>
+      <span className="status-badge-text">{label}</span>
+    </span>
+  );
 }

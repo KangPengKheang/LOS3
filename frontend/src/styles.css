@@ -253,12 +253,12 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
 }
 .status-column,
 .status-cell {
-  width: 185px;
-  max-width: 185px;
+  width: 150px;
+  max-width: 150px;
 }
 .status-cell {
-  padding-left: 10px;
-  padding-right: 10px;
+  padding-left: 8px;
+  padding-right: 8px;
 }
 .days-cell { font-weight: 900; text-align: center; border-radius: 8px; }
 .process-days { color: #a15c00; }
@@ -268,16 +268,27 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: fit-content;
-  min-width: 70px;
-  max-width: 170px;
+  min-width: 76px;
   padding: 7px 10px;
-  border-radius: 999px;
+  border-radius: 8px;
   font-weight: 900;
   font-size: 12px;
   line-height: 1.15;
-  white-space: normal;
   text-align: center;
+  vertical-align: middle;
+}
+.status-cell .status-badge {
+  width: 134px;
+  min-height: 36px;
+  padding: 6px 8px;
+}
+.status-badge-text {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .status-badge.success { background: var(--green-soft); color: var(--green); }
 .status-badge.warning { background: var(--orange-soft); color: #a15c00; }
