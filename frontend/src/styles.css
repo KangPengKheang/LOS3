@@ -240,16 +240,11 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
   line-height: 1.25;
   text-align: left;
 }
-.remark-preview,
-.purpose-cell {
+.remark-preview {
   max-width: 180px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.purpose-cell {
-  width: 180px;
-  color: #17233f;
 }
 .status-column,
 .status-cell {

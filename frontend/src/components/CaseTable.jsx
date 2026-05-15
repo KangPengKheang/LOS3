@@ -39,7 +39,6 @@ export default function CaseTable({ rows, onSelectCase, selectedCase }) {
             <th>Product</th>
             <th>Total Exposure</th>
             <th className="status-column">Status</th>
-            <th>Purpose</th>
             <th>LOS Days</th>
             <th>Remark</th>
           </tr>
@@ -52,7 +51,6 @@ export default function CaseTable({ rows, onSelectCase, selectedCase }) {
             const isRemarkPinned = pinnedRemarkId === applicationId;
             const customerName = String(row.CUSTOMER_NAME || '').trim();
             const rmName = String(row.RM_NAME || row.RM_Name || row.rm_name || '').trim();
-            const purpose = String(row.PURPOSE || '').trim();
 
             return (
               <tr
@@ -79,7 +77,6 @@ export default function CaseTable({ rows, onSelectCase, selectedCase }) {
                 <td>{row.PRODUCTS || '-'}</td>
                 <td>{formatCurrency(row.TOTAL_EXPOSURE)}</td>
                 <td className="status-cell"><StatusBadge status={row.STATUS} /></td>
-                <td className="purpose-cell">{purpose || '-'}</td>
                 <td className="days-cell los-days">{getLosDays(row)}</td>
                 <td>
                   {remarked ? (
