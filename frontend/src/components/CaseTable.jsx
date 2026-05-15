@@ -50,7 +50,9 @@ export default function CaseTable({ rows, onSelectCase, selectedCase }) {
             const isSelected = selectedCase?.APPLICATION_NUMBER_ID === row.APPLICATION_NUMBER_ID;
             const applicationId = row.APPLICATION_NUMBER_ID;
             const isRemarkPinned = pinnedRemarkId === applicationId;
-            const rmName = row.RM_NAME || row.RM_Name || row.rm_name;
+            const customerName = String(row.CUSTOMER_NAME || '').trim();
+            const rmName = String(row.RM_NAME || row.RM_Name || row.rm_name || '').trim();
+            const purpose = String(row.PURPOSE || '').trim();
 
             return (
               <tr
@@ -59,7 +61,7 @@ export default function CaseTable({ rows, onSelectCase, selectedCase }) {
               >
                 <td className="mono">{applicationId}</td>
                 <td>{formatDate(row.APPLICATION_DATE)}</td>
-                <td>
+                <td className="customer-table-cell">
                   <div className="customer-cell">
                     <button
                       type="button"
@@ -67,7 +69,7 @@ export default function CaseTable({ rows, onSelectCase, selectedCase }) {
                       onClick={() => onSelectCase(row)}
                       title="View details and add/edit remark"
                     >
-                      {row.CUSTOMER_NAME || '-'}
+                      {customerName || '-'}
                     </button>
                     <span className="rm-name">RM: {rmName || '-'}</span>
                   </div>
@@ -77,7 +79,7 @@ export default function CaseTable({ rows, onSelectCase, selectedCase }) {
                 <td>{row.PRODUCTS || '-'}</td>
                 <td>{formatCurrency(row.TOTAL_EXPOSURE)}</td>
                 <td><StatusBadge status={row.STATUS} /></td>
-                <td className="remark-preview">{row.PURPOSE || '-'}</td>
+                <td className="purpose-cell">{purpose || '-'}</td>
                 <td className="days-cell los-days">{getLosDays(row)}</td>
                 <td>
                   {remarked ? (

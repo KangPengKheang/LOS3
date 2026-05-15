@@ -187,7 +187,7 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
   overflow-y: visible;
   border-top: 1px solid var(--line);
 }
-.case-table { width: 100%; border-collapse: collapse; min-width: 1400px; }
+.case-table { width: 100%; border-collapse: collapse; min-width: 1320px; }
 .case-table th {
   text-align: left;
   color: #465878;
@@ -211,10 +211,15 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
 .case-table tbody tr.remarked-row { background: #fbfffd; }
 .case-table tbody tr.remarked-row:hover { background: #f0fbf5; }
 .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 13px; }
+.customer-table-cell {
+  text-align: left;
+  min-width: 170px;
+}
 .customer-cell {
   display: grid;
   gap: 5px;
   align-items: start;
+  justify-items: start;
 }
 .customer-link {
   border: 0;
@@ -224,19 +229,27 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
   font-weight: 800;
   text-decoration: underline;
   text-underline-offset: 3px;
+  text-align: left;
+  white-space: normal;
 }
 .customer-link:hover { color: #003f9e; }
 .rm-name {
-  color: #63708a;
+  color: var(--green);
   font-size: 12px;
   font-weight: 750;
   line-height: 1.25;
+  text-align: left;
 }
-.remark-preview {
-  max-width: 330px;
+.remark-preview,
+.purpose-cell {
+  max-width: 180px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.purpose-cell {
+  width: 180px;
+  color: #17233f;
 }
 .days-cell { font-weight: 900; text-align: center; border-radius: 8px; }
 .process-days { color: #a15c00; }
