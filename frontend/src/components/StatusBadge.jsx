@@ -26,11 +26,42 @@ export function getStatusClass(status = '') {
   return 'info';
 }
 
+export function getStatusLabel(status = '') {
+  const label = String(status || '-').trim();
+  const normalized = label.toLowerCase();
+
+  const labels = {
+    'rm submission': 'RM Submit',
+    'credit assessment': 'Credit Assess',
+    'credit operation': 'Credit Ops',
+    'approval committee': 'Committee',
+    'legal & documentation': 'Legal Docs',
+    'disbursement preparation': 'Disbursement',
+    'returned to rm': 'Return RM',
+    'waiting approve from head of credit management': 'Head Credit Approval',
+  };
+
+  if (labels[normalized]) return labels[normalized];
+
+  return label
+    .replace(/\bwaiting\b/ig, 'Wait')
+    .replace(/\bapprove\b/ig, 'Approval')
+    .replace(/\bapproval\b/ig, 'Approval')
+    .replace(/\bmanagement\b/ig, 'Mgmt')
+    .replace(/\bdocumentation\b/ig, 'Docs')
+    .replace(/\bassessment\b/ig, 'Assess')
+    .replace(/\boperation\b/ig, 'Ops')
+    .replace(/\bpreparation\b/ig, 'Prep')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export default function StatusBadge({ status }) {
   const label = status || '-';
+  const displayLabel = getStatusLabel(status);
   return (
     <span className={`status-badge ${getStatusClass(status)}`} title={label}>
-      <span className="status-badge-text">{label}</span>
+      <span className="status-badge-text">{displayLabel}</span>
     </span>
   );
 }

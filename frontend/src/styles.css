@@ -253,8 +253,8 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
 }
 .status-column,
 .status-cell {
-  width: 150px;
-  max-width: 150px;
+  width: 170px;
+  max-width: 170px;
 }
 .status-cell {
   padding-left: 8px;
@@ -270,7 +270,7 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
   justify-content: center;
   min-width: 76px;
   padding: 7px 10px;
-  border-radius: 8px;
+  border-radius: 999px;
   font-weight: 900;
   font-size: 12px;
   line-height: 1.15;
@@ -278,17 +278,15 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
   vertical-align: middle;
 }
 .status-cell .status-badge {
-  width: 134px;
-  min-height: 36px;
-  padding: 6px 8px;
+  width: 154px;
+  min-height: 34px;
+  padding: 6px 10px;
 }
 .status-badge-text {
-  display: -webkit-box;
+  display: block;
   max-width: 100%;
-  overflow: hidden;
   overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  white-space: normal;
 }
 .status-badge.success { background: var(--green-soft); color: var(--green); }
 .status-badge.warning { background: var(--orange-soft); color: #a15c00; }
