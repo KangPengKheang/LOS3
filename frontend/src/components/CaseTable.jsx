@@ -38,7 +38,7 @@ export default function CaseTable({ rows, onSelectCase, selectedCase }) {
             <th>Source</th>
             <th>Product</th>
             <th>Total Exposure</th>
-            <th>Status</th>
+            <th className="status-column">Status</th>
             <th>Purpose</th>
             <th>LOS Days</th>
             <th>Remark</th>
@@ -78,7 +78,7 @@ export default function CaseTable({ rows, onSelectCase, selectedCase }) {
                 <td>{row.APPLICATION_SOURCE || '-'}</td>
                 <td>{row.PRODUCTS || '-'}</td>
                 <td>{formatCurrency(row.TOTAL_EXPOSURE)}</td>
-                <td><StatusBadge status={row.STATUS} /></td>
+                <td className="status-cell"><StatusBadge status={row.STATUS} /></td>
                 <td className="purpose-cell">{purpose || '-'}</td>
                 <td className="days-cell los-days">{getLosDays(row)}</td>
                 <td>
