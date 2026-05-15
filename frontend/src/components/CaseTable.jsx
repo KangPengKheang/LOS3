@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Clock, MessageCircle, UserRound } from 'lucide-react';
 import StatusBadge from './StatusBadge.jsx';
 import { formatCurrency } from '../utils/format.js';
-import { formatDateTime, getLosDays } from '../utils/dateUtils.js';
+import { formatDate, formatDateTime, getLosDays } from '../utils/dateUtils.js';
 import { getRemarkText, hasRemark } from '../utils/remarks.js';
 
 function RemarkPreviewPopover({ row }) {
@@ -32,13 +32,14 @@ export default function CaseTable({ rows, onSelectCase, selectedCase }) {
         <thead>
           <tr>
             <th>Application ID</th>
+            <th>Application Date</th>
             <th>Customer</th>
             <th>Branch</th>
             <th>Source</th>
             <th>Product</th>
-            <th>Request Amount</th>
+            <th>Total Exposure</th>
             <th>Status</th>
-            <th>Current Step / Remark</th>
+            <th>Purpose</th>
             <th>LOS Days</th>
             <th>Remark</th>
           </tr>
@@ -57,6 +58,7 @@ export default function CaseTable({ rows, onSelectCase, selectedCase }) {
                 className={`${isSelected ? 'selected-row' : ''} ${remarked ? 'remarked-row' : ''}`}
               >
                 <td className="mono">{applicationId}</td>
+                <td>{formatDate(row.APPLICATION_DATE)}</td>
                 <td>
                   <div className="customer-cell">
                     <button
@@ -73,9 +75,9 @@ export default function CaseTable({ rows, onSelectCase, selectedCase }) {
                 <td>{row.BRANCH_NAME || '-'}</td>
                 <td>{row.APPLICATION_SOURCE || '-'}</td>
                 <td>{row.PRODUCTS || '-'}</td>
-                <td>{formatCurrency(row.TOTAL_NEW_REQUEST_AMOUNT)}</td>
+                <td>{formatCurrency(row.TOTAL_EXPOSURE)}</td>
                 <td><StatusBadge status={row.STATUS} /></td>
-                <td className="remark-preview">{row.COMMENT_FROM_APPROVER || row.PURPOSE || '-'}</td>
+                <td className="remark-preview">{row.PURPOSE || '-'}</td>
                 <td className="days-cell los-days">{getLosDays(row)}</td>
                 <td>
                   {remarked ? (

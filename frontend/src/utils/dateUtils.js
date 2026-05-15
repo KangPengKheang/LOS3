@@ -57,7 +57,7 @@ export function getEndDate(row) {
 }
 
 export function getLosDays(row) {
-  return diffDays(row.APPLICATION_DATE || row.ISSUE_DATE, getEndDate(row));
+  return diffDays(row.APPLICATION_DATE || row.ISSUE_DATE, new Date());
 }
 
 export function getProcessDays(row) {

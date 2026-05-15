@@ -29,14 +29,16 @@ function unique(values) {
 function exportCsv(rows) {
   const headers = [
     'APPLICATION_NUMBER_ID',
+    'APPLICATION_DATE',
     'CUSTOMER_NAME',
     'RM_NAME',
     'BRANCH_NAME',
     'APPLICATION_SOURCE',
     'PRODUCTS',
+    'TOTAL_EXPOSURE',
     'TOTAL_NEW_REQUEST_AMOUNT',
     'STATUS',
-    'COMMENT_FROM_APPROVER',
+    'PURPOSE',
     'FOLLOW_UP_REMARK',
     'REMARK_UPDATED_BY',
     'REMARK_UPDATED_AT',

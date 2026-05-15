@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Clock, MessageCircle, UserRound, X } from 'lucide-react';
 import StatusBadge from './StatusBadge.jsx';
 import { formatCurrency } from '../utils/format.js';
-import { formatDateTime, getLosDays } from '../utils/dateUtils.js';
+import { formatDate, formatDateTime, getLosDays } from '../utils/dateUtils.js';
 import { getRemarkText, hasRemark } from '../utils/remarks.js';
 
 const MAX_REMARK_LENGTH = 2000;
@@ -32,6 +32,7 @@ export default function RemarkModal({ row, saving, onClose, onSave }) {
     : 'Case Details & Add Follow-up Remark';
 
   const saveLabel = alreadyRemarked ? 'Save Changes' : 'Save Remark';
+  const rmName = row.RM_NAME || row.RM_Name || row.rm_name;
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="remark-modal-title">
@@ -54,13 +55,15 @@ export default function RemarkModal({ row, saving, onClose, onSave }) {
           <h4>Case Information</h4>
           <div className="modal-detail-grid">
             <DetailItem label="Application ID">{row.APPLICATION_NUMBER_ID}</DetailItem>
+            <DetailItem label="Application Date">{formatDate(row.APPLICATION_DATE)}</DetailItem>
             <DetailItem label="Customer"><span className="modal-link-text">{row.CUSTOMER_NAME}</span></DetailItem>
             <DetailItem label="Branch">{row.BRANCH_NAME}</DetailItem>
-            <DetailItem label="RM">{row.RM_NAME}</DetailItem>
+            <DetailItem label="RM">{rmName}</DetailItem>
             <DetailItem label="Product">{row.PRODUCTS}</DetailItem>
-            <DetailItem label="Request Amount">{formatCurrency(row.TOTAL_NEW_REQUEST_AMOUNT)}</DetailItem>
+            <DetailItem label="New Request Amount">{formatCurrency(row.TOTAL_NEW_REQUEST_AMOUNT)}</DetailItem>
+            <DetailItem label="Total Exposure">{formatCurrency(row.TOTAL_EXPOSURE)}</DetailItem>
             <DetailItem label="Status"><StatusBadge status={row.STATUS} /></DetailItem>
-            <DetailItem label="Current Step">{row.COMMENT_FROM_APPROVER || row.STATUS}</DetailItem>
+            <DetailItem label="Purpose">{row.PURPOSE}</DetailItem>
             <DetailItem label="LOS Days">{getLosDays(row)} days</DetailItem>
           </div>
         </div>
