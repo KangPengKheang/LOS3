@@ -16,7 +16,7 @@ export const statusOrder = [
 
 export function getStatusClass(status = '') {
   const s = status.toLowerCase();
-  if (s === 'drawdown') return 'success';
+  if (s === 'drawdown' || s === 'approved') return 'success';
   if (s.includes('returned')) return 'warning';
   if (s.includes('reject')) return 'danger';
   if (s.includes('cancel')) return 'neutral';
