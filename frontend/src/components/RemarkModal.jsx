@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Clock, MessageCircle, UserRound, X } from 'lucide-react';
 import StatusBadge from './StatusBadge.jsx';
 import { formatCurrency } from '../utils/format.js';
-import { formatDateTime, getLosDays, getProcessDays } from '../utils/dateUtils.js';
+import { formatDateTime, getLosDays } from '../utils/dateUtils.js';
 import { getRemarkText, hasRemark } from '../utils/remarks.js';
 
 const MAX_REMARK_LENGTH = 2000;
@@ -61,7 +61,6 @@ export default function RemarkModal({ row, saving, onClose, onSave }) {
             <DetailItem label="Request Amount">{formatCurrency(row.TOTAL_NEW_REQUEST_AMOUNT)}</DetailItem>
             <DetailItem label="Status"><StatusBadge status={row.STATUS} /></DetailItem>
             <DetailItem label="Current Step">{row.COMMENT_FROM_APPROVER || row.STATUS}</DetailItem>
-            <DetailItem label="Process Days">{getProcessDays(row)} days</DetailItem>
             <DetailItem label="LOS Days">{getLosDays(row)} days</DetailItem>
           </div>
         </div>

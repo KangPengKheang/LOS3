@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Clock, MessageCircle, UserRound } from 'lucide-react';
 import StatusBadge from './StatusBadge.jsx';
 import { formatCurrency } from '../utils/format.js';
-import { formatDateTime, getLosDays, getProcessDays } from '../utils/dateUtils.js';
+import { formatDateTime, getLosDays } from '../utils/dateUtils.js';
 import { getRemarkText, hasRemark } from '../utils/remarks.js';
 
 function RemarkPreviewPopover({ row }) {
@@ -39,7 +39,6 @@ export default function CaseTable({ rows, onSelectCase, selectedCase }) {
             <th>Request Amount</th>
             <th>Status</th>
             <th>Current Step / Remark</th>
-            <th>Process Days</th>
             <th>LOS Days</th>
             <th>Remark</th>
           </tr>
@@ -50,6 +49,7 @@ export default function CaseTable({ rows, onSelectCase, selectedCase }) {
             const isSelected = selectedCase?.APPLICATION_NUMBER_ID === row.APPLICATION_NUMBER_ID;
             const applicationId = row.APPLICATION_NUMBER_ID;
             const isRemarkPinned = pinnedRemarkId === applicationId;
+            const rmName = row.RM_NAME || row.RM_Name || row.rm_name;
 
             return (
               <tr
@@ -58,14 +58,17 @@ export default function CaseTable({ rows, onSelectCase, selectedCase }) {
               >
                 <td className="mono">{applicationId}</td>
                 <td>
-                  <button
-                    type="button"
-                    className="customer-link"
-                    onClick={() => onSelectCase(row)}
-                    title="View details and add/edit remark"
-                  >
-                    {row.CUSTOMER_NAME || '-'}
-                  </button>
+                  <div className="customer-cell">
+                    <button
+                      type="button"
+                      className="customer-link"
+                      onClick={() => onSelectCase(row)}
+                      title="View details and add/edit remark"
+                    >
+                      {row.CUSTOMER_NAME || '-'}
+                    </button>
+                    <span className="rm-name">RM: {rmName || '-'}</span>
+                  </div>
                 </td>
                 <td>{row.BRANCH_NAME || '-'}</td>
                 <td>{row.APPLICATION_SOURCE || '-'}</td>
@@ -73,7 +76,6 @@ export default function CaseTable({ rows, onSelectCase, selectedCase }) {
                 <td>{formatCurrency(row.TOTAL_NEW_REQUEST_AMOUNT)}</td>
                 <td><StatusBadge status={row.STATUS} /></td>
                 <td className="remark-preview">{row.COMMENT_FROM_APPROVER || row.PURPOSE || '-'}</td>
-                <td className="days-cell process-days">{getProcessDays(row)}</td>
                 <td className="days-cell los-days">{getLosDays(row)}</td>
                 <td>
                   {remarked ? (

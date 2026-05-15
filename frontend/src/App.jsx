@@ -30,6 +30,7 @@ function exportCsv(rows) {
   const headers = [
     'APPLICATION_NUMBER_ID',
     'CUSTOMER_NAME',
+    'RM_NAME',
     'BRANCH_NAME',
     'APPLICATION_SOURCE',
     'PRODUCTS',
@@ -42,7 +43,10 @@ function exportCsv(rows) {
   ];
 
   const csv = [headers.join(',')]
-    .concat(rows.map(row => headers.map(h => `"${String(row[h] ?? '').replaceAll('"', '""')}"`).join(',')))
+    .concat(rows.map(row => headers.map(h => {
+      const value = h === 'RM_NAME' ? (row.RM_NAME ?? row.RM_Name ?? row.rm_name) : row[h];
+      return `"${String(value ?? '').replaceAll('"', '""')}"`;
+    }).join(',')))
     .join('\n');
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

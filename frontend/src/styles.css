@@ -211,6 +211,11 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
 .case-table tbody tr.remarked-row { background: #fbfffd; }
 .case-table tbody tr.remarked-row:hover { background: #f0fbf5; }
 .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 13px; }
+.customer-cell {
+  display: grid;
+  gap: 5px;
+  align-items: start;
+}
 .customer-link {
   border: 0;
   background: transparent;
@@ -221,6 +226,12 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
   text-underline-offset: 3px;
 }
 .customer-link:hover { color: #003f9e; }
+.rm-name {
+  color: #63708a;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.25;
+}
 .remark-preview {
   max-width: 330px;
   white-space: nowrap;
