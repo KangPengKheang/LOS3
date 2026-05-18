@@ -46,6 +46,25 @@ button { cursor: pointer; }
   margin-bottom: 12px;
 }
 .brand-block { display: flex; align-items: center; gap: 16px; }
+.logo-placeholder {
+  width: 208px;
+  min-height: 76px;
+  border: 2px dashed #8eb5f2;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #f9fcff, #eef4ff);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+.brand-logo {
+  width: calc(100% - 18px);
+  max-height: 56px;
+  object-fit: contain;
+  object-position: center;
+}
 h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spacing: -1.2px; }
 .topbar p { margin: 8px 0 0; color: var(--gray); font-size: 15px; }
 .topbar-actions { display: inline-flex; align-items: center; gap: 10px; }
@@ -750,6 +769,7 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
 @media (max-width: 760px) {
   .app-shell { width: min(100% - 22px, 1480px); padding-top: 16px; }
   .topbar { align-items: flex-start; flex-direction: column; }
+  .logo-placeholder { width: 100%; }
   .source-pill { margin-left: 0; }
   .kpi-grid { grid-template-columns: 1fr; }
   .panel-head { flex-direction: column; }

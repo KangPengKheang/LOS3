@@ -23,6 +23,16 @@ export default function FilterBar({ filters, setFilters, branches, products, sta
       <Select label="Status" value={filters.status} onChange={(value) => setFilters((prev) => ({ ...prev, status: value }))} options={statuses} />
       <Select label="Branch" value={filters.branch} onChange={(value) => setFilters((prev) => ({ ...prev, branch: value }))} options={branches} />
       <Select label="Product" value={filters.product} onChange={(value) => setFilters((prev) => ({ ...prev, product: value }))} options={products} />
+      <select
+        className="select-input"
+        value={filters.losSort}
+        onChange={(e) => setFilters((prev) => ({ ...prev, losSort: e.target.value }))}
+        aria-label="Sort LOS Days"
+      >
+        <option value="default">LOS Days: Default</option>
+        <option value="asc">LOS Days: Lowest to Highest</option>
+        <option value="desc">LOS Days: Highest to Lowest</option>
+      </select>
       <button className="export-btn" onClick={onExport}>Export CSV</button>
     </div>
   );

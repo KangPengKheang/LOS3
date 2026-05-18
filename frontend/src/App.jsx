@@ -15,6 +15,7 @@ import FilterBar from './components/FilterBar.jsx';
 import CaseTable from './components/CaseTable.jsx';
 import TrendLineChart from './components/TrendLineChart.jsx';
 import RemarkModal from './components/RemarkModal.jsx';
+import chipMongBankLogo from './assets/chip-mong-bank-logo.png.jpg';
 import { fetchLosCases, saveCaseRemark } from './services/sheetApi.js';
 import { formatCompactCurrency, toNumber } from './utils/format.js';
 import { getLosDays } from './utils/dateUtils.js';
@@ -69,7 +70,13 @@ export default function App() {
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
   const [selectedCase, setSelectedCase] = useState(null);
-  const [filters, setFilters] = useState({ search: '', status: 'All', branch: 'All', product: 'All' });
+  const [filters, setFilters] = useState({
+    search: '',
+    status: 'All',
+    branch: 'All',
+    product: 'All',
+    losSort: 'default',
+  });
 
   async function loadData() {
     try {
@@ -95,7 +102,7 @@ export default function App() {
 
   const filtered = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
-    return cases.filter(row => {
+    const rows = cases.filter(row => {
       const searchable = [
         row.APPLICATION_NUMBER_ID,
         row.CUSTOMER_NAME,
@@ -114,6 +121,16 @@ export default function App() {
         && (filters.branch === 'All' || row.BRANCH_NAME === filters.branch)
         && (filters.product === 'All' || row.PRODUCTS === filters.product);
     });
+
+    if (filters.losSort === 'asc') {
+      return [...rows].sort((a, b) => getLosDays(a) - getLosDays(b));
+    }
+
+    if (filters.losSort === 'desc') {
+      return [...rows].sort((a, b) => getLosDays(b) - getLosDays(a));
+    }
+
+    return rows;
   }, [cases, filters]);
 
   const metrics = useMemo(() => {
@@ -172,9 +189,12 @@ export default function App() {
       <main className="app-shell">
         <header className="topbar">
           <div className="brand-block">
+            <div className="logo-placeholder">
+              <img src={chipMongBankLogo} alt="Chip Mong Bank" className="brand-logo" />
+            </div>
             <div>
-              <h1>LOS Case Monitoring Dashboard</h1>
-              <p>Workflow-stage monitoring, approval movement, and case-by-case tracking from Google Sheet</p>
+              <h1>Chip Mong Bank LOS Executive Command Center</h1>
+              <p>Enterprise-grade LOS oversight, trend intelligence, and end-to-end workflow excellence</p>
             </div>
           </div>
           <div className="topbar-actions">
