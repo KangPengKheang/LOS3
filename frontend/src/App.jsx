@@ -13,6 +13,7 @@ import {
 import KpiCard from './components/KpiCard.jsx';
 import FilterBar from './components/FilterBar.jsx';
 import CaseTable from './components/CaseTable.jsx';
+import TrendLineChart from './components/TrendLineChart.jsx';
 import RemarkModal from './components/RemarkModal.jsx';
 import { fetchLosCases, saveCaseRemark } from './services/sheetApi.js';
 import { formatCompactCurrency, toNumber } from './utils/format.js';
@@ -220,6 +221,8 @@ export default function App() {
             </div>
             <button className="refresh-btn" onClick={loadData} disabled={loading}><RefreshCw size={16} /> Refresh</button>
           </div>
+
+          <TrendLineChart rows={cases} branches={branches} />
 
           <FilterBar
             filters={filters}
