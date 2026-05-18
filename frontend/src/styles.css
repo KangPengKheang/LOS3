@@ -47,21 +47,22 @@ button { cursor: pointer; }
 }
 .brand-block { display: flex; align-items: center; gap: 22px; }
 .logo-placeholder {
-  width: 320px;
-  min-height: 132px;
-  border: 2px dashed #8eb5f2;
+  width: 420px;
+  min-height: 170px;
+  border: 0;
   border-radius: 16px;
   background: linear-gradient(145deg, #f9fcff, #eef4ff);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 3px;
+  padding: 10px 12px;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.8);
 }
 .brand-logo {
-  width: calc(100% - 24px);
-  max-height: 112px;
+  width: 100%;
+  height: 100%;
+  max-height: none;
   object-fit: contain;
   object-position: center;
 }
@@ -771,9 +772,12 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
   .topbar { align-items: flex-start; flex-direction: column; }
   .logo-placeholder {
     width: 100%;
-    min-height: 108px;
+    min-height: 130px;
   }
-  .brand-logo { max-height: 90px; }
+  .brand-logo {
+    width: 100%;
+    height: 100%;
+  }
   .source-pill { margin-left: 0; }
   .kpi-grid { grid-template-columns: 1fr; }
   .panel-head { flex-direction: column; }
