@@ -222,13 +222,6 @@ export default function App() {
           </div>
         ) : null}
 
-        <section className="kpi-grid">
-          <KpiCard icon={<FolderOpen />} title="Total LOS Cases" value={metrics.total} tone="blue" />
-          <KpiCard icon={<CheckCircle2 />} title="Drawdown Cases" value={metrics.drawdown} tone="green" helper="Completed workflow" />
-          <KpiCard icon={<DollarSign />} title="Drawdown Amount" value={formatCompactCurrency(metrics.amount)} tone="green" />
-          <KpiCard icon={<Clock3 />} title="Active Processing Cases" value={metrics.active} tone="orange" helper={`Avg LOS Days: ${metrics.avgLosDays} days`} />
-        </section>
-
         <section className="panel">
           <div className="panel-head">
             <div>
