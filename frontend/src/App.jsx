@@ -193,8 +193,8 @@ export default function App() {
               <img src={chipMongBankLogo} alt="Chip Mong Bank" className="brand-logo" />
             </div>
             <div>
-              <h1>Chip Mong Bank LOS Executive Command Center</h1>
-              <p>Enterprise-grade LOS oversight, trend intelligence, and end-to-end workflow excellence</p>
+              <h1>LOS Executive Command Center</h1>
+              <p>Enterprise-level LOS oversight, trend intelligence, and end-to-end workflow excellence</p>
             </div>
           </div>
           <div className="topbar-actions">
