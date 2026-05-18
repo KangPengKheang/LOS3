@@ -14,6 +14,7 @@ import KpiCard from './components/KpiCard.jsx';
 import FilterBar from './components/FilterBar.jsx';
 import CaseTable from './components/CaseTable.jsx';
 import TrendLineChart from './components/TrendLineChart.jsx';
+import WorkflowTracker from './components/WorkflowTracker.jsx';
 import RemarkModal from './components/RemarkModal.jsx';
 import chipMongBankLogo from './assets/chip-mong-bank-logo.png.jpg';
 import { fetchLosCases, saveCaseRemark } from './services/sheetApi.js';
@@ -221,6 +222,8 @@ export default function App() {
             <button onClick={loadData}>Retry</button>
           </div>
         ) : null}
+
+        <WorkflowTracker cases={cases} />
 
         <section className="panel">
           <div className="panel-head">

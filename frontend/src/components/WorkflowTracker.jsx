@@ -1,0 +1,248 @@
+import React, { useMemo, useRef, useState } from 'react';
+import { X } from 'lucide-react';
+import { getLosDays } from '../utils/dateUtils.js';
+
+const FLOW_STEPS = [
+  {
+    id: 'draft',
+    label: 'Draft',
+    fullName: 'Draft',
+    description: 'Application created and submitted by the Relationship Manager. Awaiting first-level review before entering the approval pipeline.',
+    color: '#6366f1',
+    softColor: '#eef2ff',
+    statuses: ['Draft', 'RM Submission'],
+  },
+  {
+    id: 'dbm',
+    label: 'DBM Review',
+    fullName: 'Under Review From DBM',
+    description: 'Deputy Branch Manager is conducting initial review of the application documents and supporting evidence.',
+    color: '#0ea5e9',
+    softColor: '#e0f2fe',
+    statuses: ['DBM Review', 'Under Review From DBM'],
+  },
+  {
+    id: 'bm',
+    label: 'BM Review',
+    fullName: 'Under Review From BM',
+    description: 'Branch Manager reviewing application viability, completeness, and branch-level risk assessment.',
+    color: '#1463d8',
+    softColor: '#eaf2ff',
+    statuses: ['BM Review', 'Under Review From BM'],
+  },
+  {
+    id: 'rbm',
+    label: 'RBM Review',
+    fullName: 'Under Review From RBM',
+    description: 'Regional Branch Manager conducting higher-level review for regional compliance and risk alignment.',
+    color: '#7c3aed',
+    softColor: '#f3e8ff',
+    statuses: ['RBM Review', 'Under Review From RBM'],
+  },
+  {
+    id: 'cmt',
+    label: 'Credit Mgmt Team',
+    fullName: 'Waiting Credit Management Team',
+    description: 'Credit Management Team performing comprehensive credit assessment, scoring evaluation, and risk profiling.',
+    color: '#0891b2',
+    softColor: '#ecfeff',
+    statuses: ['Credit Management Team', 'Waiting Credit Management Team', 'Credit Assessment', 'Credit Operation'],
+  },
+  {
+    id: 'hcm',
+    label: 'Head of Credit',
+    fullName: 'Head of Credit Management Approval',
+    description: 'Awaiting formal approval from Head of Credit Management following thorough credit committee review.',
+    color: '#d97706',
+    softColor: '#fffbeb',
+    statuses: ['Head of Credit Management', 'Waiting Approve from Head of Credit Management', 'Approval Committee'],
+  },
+  {
+    id: 'rd',
+    label: 'Risk Director',
+    fullName: 'Waiting Acknowledge from Risk Director',
+    description: 'Pending risk acknowledgement from the Risk Director for enterprise-level risk sign-off.',
+    color: '#dc2626',
+    softColor: '#fff1f2',
+    statuses: ['Risk Director', 'Waiting Acknowledge from Risk Director'],
+  },
+  {
+    id: 'bd',
+    label: 'Board Director',
+    fullName: 'Waiting Approve from Board Director',
+    description: 'Application pending formal approval from the Board Director prior to final executive endorsement.',
+    color: '#9333ea',
+    softColor: '#fdf4ff',
+    statuses: ['Board Director', 'Waiting Approve from Board Director', 'Legal & Documentation'],
+  },
+  {
+    id: 'gp',
+    label: 'Group President',
+    fullName: 'Waiting Approve from Group President',
+    description: 'Final executive endorsement pending from the Group President. Disbursement preparation underway.',
+    color: '#be185d',
+    softColor: '#fdf2f8',
+    statuses: ['Group President', 'Waiting Approve from Group President', 'Disbursement Preparation'],
+  },
+  {
+    id: 'approved',
+    label: 'Approved',
+    fullName: 'Approved',
+    description: 'Application fully approved across all authority levels. Drawdown completed and funds disbursed.',
+    color: '#128143',
+    softColor: '#e9f8ef',
+    statuses: ['Approved', 'Drawdown'],
+  },
+];
+
+export default function WorkflowTracker({ cases }) {
+  const [activeStep, setActiveStep] = useState(null);
+  const closeTimer = useRef(null);
+
+  const stepData = useMemo(() => FLOW_STEPS.map(step => {
+    const matchingCases = cases.filter(row => {
+      const status = (row.STATUS || '').trim();
+      return step.statuses.some(s => s.toLowerCase() === status.toLowerCase());
+    });
+    return { ...step, cases: matchingCases, count: matchingCases.length };
+  }), [cases]);
+
+  const totalActive = stepData.reduce((sum, s) => sum + s.count, 0);
+  const stagesWithCases = stepData.filter(s => s.count > 0).length;
+
+  function handleStepEnter(step) {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setActiveStep(step);
+  }
+
+  function handleStepLeave() {
+    closeTimer.current = setTimeout(() => setActiveStep(null), 200);
+  }
+
+  function handlePopupEnter() {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+  }
+
+  function handlePopupLeave() {
+    closeTimer.current = setTimeout(() => setActiveStep(null), 200);
+  }
+
+  return (
+    <>
+      <div className="workflow-panel">
+        <div className="workflow-header">
+          <div>
+            <h3>LOS Approval Workflow</h3>
+            <p>Live pipeline — hover any stage to inspect cases in progress.</p>
+          </div>
+          <div className="workflow-meta">
+            <div className="workflow-meta-chip">
+              <span className="wf-dot-active" />
+              <strong>{totalActive}</strong> active cases across <strong>{stagesWithCases}</strong> stages
+            </div>
+            <div className="workflow-legend">
+              <span className="wf-legend-item"><span className="wf-dot-active" /> Active</span>
+              <span className="wf-legend-item"><span className="wf-dot-idle" /> No cases</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="workflow-track">
+          {stepData.map((step, index) => (
+            <React.Fragment key={step.id}>
+              <div
+                className={`wf-step${step.count > 0 ? ' wf-has-cases' : ''}${activeStep?.id === step.id ? ' wf-hovered' : ''}`}
+                style={{ '--sc': step.color, '--ss': step.softColor }}
+                onMouseEnter={() => handleStepEnter(step)}
+                onMouseLeave={handleStepLeave}
+                role="button"
+                tabIndex={0}
+                aria-label={`${step.label}: ${step.count} cases`}
+                onKeyDown={e => e.key === 'Enter' && setActiveStep(step)}
+              >
+                <div className="wf-step-num">{index + 1}</div>
+                <div className="wf-step-label">{step.label}</div>
+                {step.count > 0 && <div className="wf-step-count">{step.count}</div>}
+              </div>
+
+              {index < stepData.length - 1 && (
+                <div className="wf-connector">
+                  <svg width="28" height="12" viewBox="0 0 28 12" fill="none" aria-hidden="true">
+                    <path
+                      d="M0 6H22M18 1.5L25.5 6L18 10.5"
+                      stroke={stepData[index].count > 0 && stepData[index + 1].count > 0 ? '#1463d8' : '#c5d3e8'}
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+
+      {activeStep && (
+        <>
+          <div className="wf-overlay" onClick={() => setActiveStep(null)} />
+          <div
+            className="wf-popup"
+            onMouseEnter={handlePopupEnter}
+            onMouseLeave={handlePopupLeave}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${activeStep.label} details`}
+          >
+            <div className="wf-popup-head" style={{ background: activeStep.softColor }}>
+              <div className="wf-popup-title-row">
+                <div className="wf-popup-icon" style={{ background: activeStep.color }}>
+                  <span>{activeStep.count}</span>
+                </div>
+                <div>
+                  <h4 style={{ color: activeStep.color }}>{activeStep.label}</h4>
+                  <p>{activeStep.fullName}</p>
+                </div>
+              </div>
+              <button className="wf-close-btn" onClick={() => setActiveStep(null)} aria-label="Close">
+                <X size={17} />
+              </button>
+            </div>
+
+            <div className="wf-popup-body">
+              <p className="wf-popup-desc">{activeStep.description}</p>
+
+              {activeStep.cases.length > 0 ? (
+                <div className="wf-case-list">
+                  <div className="wf-case-list-head">
+                    {activeStep.cases.length} case{activeStep.cases.length !== 1 ? 's' : ''} at this stage
+                  </div>
+                  {activeStep.cases.map(row => (
+                    <div key={row.APPLICATION_NUMBER_ID} className="wf-case-row">
+                      <div className="wf-case-left">
+                        <strong>{row.CUSTOMER_NAME || '-'}</strong>
+                        <span className="wf-case-id">{row.APPLICATION_NUMBER_ID}</span>
+                      </div>
+                      <div className="wf-case-right">
+                        <span className="wf-case-meta-tag">{row.BRANCH_NAME || '-'}</span>
+                        <span className="wf-case-meta-tag">{row.PRODUCTS || '-'}</span>
+                        <span
+                          className="wf-los-pill"
+                          style={{ background: activeStep.softColor, color: activeStep.color }}
+                        >
+                          {getLosDays(row)}d LOS
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="wf-popup-empty">No cases currently at this stage.</div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
