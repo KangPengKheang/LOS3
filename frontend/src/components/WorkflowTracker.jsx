@@ -95,8 +95,39 @@ const FLOW_STEPS = [
   },
 ];
 
+const SPECIAL_STEPS = [
+  {
+    id: 'returned',
+    label: 'Returned',
+    fullName: 'Returned to RM',
+    description: 'Application has been returned to the Relationship Manager for corrections, additional documents, or clarification before re-submission.',
+    color: '#d97706',
+    softColor: '#fffbeb',
+    statuses: ['Returned', 'Returned to RM'],
+  },
+  {
+    id: 'cancelled',
+    label: 'Cancelled',
+    fullName: 'Cancelled',
+    description: 'Application was withdrawn or cancelled by the applicant or the bank before reaching final approval.',
+    color: '#6b7280',
+    softColor: '#f3f4f6',
+    statuses: ['Cancelled', 'Cancel'],
+  },
+  {
+    id: 'rejected',
+    label: 'Rejected',
+    fullName: 'Rejected',
+    description: 'Application was formally declined after review. No further action is required unless resubmission is initiated.',
+    color: '#dc2626',
+    softColor: '#fff1f2',
+    statuses: ['Rejected', 'Reject'],
+  },
+];
+
 export default function WorkflowTracker({ cases }) {
   const [activeStep, setActiveStep] = useState(null);
+  const [showSpecial, setShowSpecial] = useState(false);
 
   const stepData = useMemo(() => FLOW_STEPS.map(step => {
     const matchingCases = cases.filter(row => {
@@ -108,6 +139,14 @@ export default function WorkflowTracker({ cases }) {
 
   const totalActive = stepData.reduce((sum, s) => sum + s.count, 0);
   const stagesWithCases = stepData.filter(s => s.count > 0).length;
+
+  const specialData = useMemo(() => SPECIAL_STEPS.map(step => {
+    const matchingCases = cases.filter(row => {
+      const status = (row.STATUS || '').trim();
+      return step.statuses.some(s => s.toLowerCase() === status.toLowerCase());
+    });
+    return { ...step, cases: matchingCases, count: matchingCases.length };
+  }), [cases]);
 
   function handleStepClick(step) {
     setActiveStep(prev => prev?.id === step.id ? null : step);
@@ -166,6 +205,34 @@ export default function WorkflowTracker({ cases }) {
             </React.Fragment>
           ))}
         </div>
+
+        {/* Special cases toggle */}
+        <div className="wf-special-toggle" onClick={() => setShowSpecial(prev => !prev)} role="button" tabIndex={0} aria-expanded={showSpecial} onKeyDown={e => e.key === 'Enter' && setShowSpecial(prev => !prev)}>
+          <span>Special Cases</span>
+          <svg className={`wf-chevron${showSpecial ? ' wf-chevron-open' : ''}`} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </div>
+
+        {showSpecial && (
+          <div className="wf-special-track">
+            {specialData.map(step => (
+              <div
+                key={step.id}
+                className={`wf-step wf-special-step${step.count > 0 ? ' wf-has-cases' : ''}${activeStep?.id === step.id ? ' wf-hovered' : ''}`}
+                style={{ '--sc': step.color, '--ss': step.softColor }}
+                onClick={() => handleStepClick(step)}
+                role="button"
+                tabIndex={0}
+                aria-label={`${step.label}: ${step.count} cases`}
+                onKeyDown={e => e.key === 'Enter' && handleStepClick(step)}
+              >
+                <div className="wf-step-label">{step.label}</div>
+                {step.count > 0 && <div className="wf-step-count">{step.count}</div>}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {activeStep && (
