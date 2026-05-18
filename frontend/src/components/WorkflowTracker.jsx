@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { getLosDays } from '../utils/dateUtils.js';
 
@@ -97,7 +97,6 @@ const FLOW_STEPS = [
 
 export default function WorkflowTracker({ cases }) {
   const [activeStep, setActiveStep] = useState(null);
-  const closeTimer = useRef(null);
 
   const stepData = useMemo(() => FLOW_STEPS.map(step => {
     const matchingCases = cases.filter(row => {
@@ -110,21 +109,8 @@ export default function WorkflowTracker({ cases }) {
   const totalActive = stepData.reduce((sum, s) => sum + s.count, 0);
   const stagesWithCases = stepData.filter(s => s.count > 0).length;
 
-  function handleStepEnter(step) {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-    setActiveStep(step);
-  }
-
-  function handleStepLeave() {
-    closeTimer.current = setTimeout(() => setActiveStep(null), 200);
-  }
-
-  function handlePopupEnter() {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-  }
-
-  function handlePopupLeave() {
-    closeTimer.current = setTimeout(() => setActiveStep(null), 200);
+  function handleStepClick(step) {
+    setActiveStep(prev => prev?.id === step.id ? null : step);
   }
 
   return (
@@ -133,7 +119,7 @@ export default function WorkflowTracker({ cases }) {
         <div className="workflow-header">
           <div>
             <h3>LOS Approval Workflow</h3>
-            <p>Live pipeline — hover any stage to inspect cases in progress.</p>
+            <p>Live pipeline — click any stage to inspect cases in progress.</p>
           </div>
           <div className="workflow-meta">
             <div className="workflow-meta-chip">
@@ -153,8 +139,7 @@ export default function WorkflowTracker({ cases }) {
               <div
                 className={`wf-step${step.count > 0 ? ' wf-has-cases' : ''}${activeStep?.id === step.id ? ' wf-hovered' : ''}`}
                 style={{ '--sc': step.color, '--ss': step.softColor }}
-                onMouseEnter={() => handleStepEnter(step)}
-                onMouseLeave={handleStepLeave}
+                onClick={() => handleStepClick(step)}
                 role="button"
                 tabIndex={0}
                 aria-label={`${step.label}: ${step.count} cases`}
@@ -188,8 +173,6 @@ export default function WorkflowTracker({ cases }) {
           <div className="wf-overlay" onClick={() => setActiveStep(null)} />
           <div
             className="wf-popup"
-            onMouseEnter={handlePopupEnter}
-            onMouseLeave={handlePopupLeave}
             role="dialog"
             aria-modal="true"
             aria-label={`${activeStep.label} details`}
