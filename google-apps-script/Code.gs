@@ -146,7 +146,7 @@ function handleSyncRows_(payload) {
     let removedDrawdown = 0;
 
     for (let rowNumber = sheet.getLastRow(); rowNumber >= 2; rowNumber -= 1) {
-      const applicationId = String(sheet.getRange(rowNumber, applicationIdColumn).getDisplayValue()).trim();
+      const applicationId = normalizeApplicationId_(sheet.getRange(rowNumber, applicationIdColumn).getDisplayValue());
 
       if (drawdownIds[applicationId]) {
         sheet.deleteRow(rowNumber);
@@ -161,10 +161,10 @@ function handleSyncRows_(payload) {
         .getRange(2, applicationIdColumn, lastRow - 1, 1)
         .getDisplayValues()
         .flat()
-        .map(value => String(value).trim());
+        .map(value => normalizeApplicationId_(value));
 
       applicationIds.forEach((id, index) => {
-        if (id && id !== keyField && !(id in idToRowNumber)) {
+        if (id && id !== normalizeApplicationId_(keyField) && !(id in idToRowNumber)) {
           idToRowNumber[id] = index + 2;
         }
       });
@@ -177,22 +177,23 @@ function handleSyncRows_(payload) {
 
     rows.forEach(row => {
       const applicationId = String(row[keyField] || "").trim();
+      const normalizedApplicationId = normalizeApplicationId_(applicationId);
 
-      if (!applicationId || applicationId === keyField) {
+      if (!normalizedApplicationId || normalizedApplicationId === normalizeApplicationId_(keyField)) {
         skipped += 1;
         return;
       }
 
-      if (drawdownIds[applicationId]) {
+      if (drawdownIds[normalizedApplicationId]) {
         skippedDrawdown += 1;
         return;
       }
 
-      let targetRow = idToRowNumber[applicationId];
+      let targetRow = idToRowNumber[normalizedApplicationId];
 
       if (!targetRow) {
         targetRow = sheet.getLastRow() + 1;
-        idToRowNumber[applicationId] = targetRow;
+        idToRowNumber[normalizedApplicationId] = targetRow;
         appended += 1;
       } else {
         updated += 1;
@@ -272,14 +273,20 @@ function getApplicationIdsFromSheet_(ss, sheetName, sheetKeyField) {
     .getRange(2, applicationIdColumn, sheet.getLastRow() - 1, 1)
     .getDisplayValues()
     .flat()
-    .map(value => String(value).trim())
+    .map(value => normalizeApplicationId_(value))
     .forEach(id => {
-      if (id && id !== sheetKeyField) {
+      if (id && id !== normalizeApplicationId_(sheetKeyField)) {
         applicationIds[id] = true;
       }
     });
 
   return applicationIds;
+}
+
+function normalizeApplicationId_(value) {
+  return String(value || "")
+    .replace(/[\s\u00A0\u200B-\u200D\uFEFF]/g, "")
+    .toUpperCase();
 }
 
 function getSheetData_(sheet) {
