@@ -7,6 +7,7 @@
 const SPREADSHEET_ID = "";
 const SHEET_NAME = "LOS_Data";
 const DRAWDOWN_SHEET_NAME = "DD";
+const DRAWDOWN_KEY_FIELD = "APPLICATION_NUMBER";
 
 const REMARK_COLUMNS = [
   "FOLLOW_UP_REMARK",
@@ -132,7 +133,7 @@ function handleSyncRows_(payload) {
     }
 
     const ss = getSpreadsheet_();
-    const drawdownIds = getApplicationIdsFromSheet_(ss, DRAWDOWN_SHEET_NAME, keyField);
+    const drawdownIds = getApplicationIdsFromSheet_(ss, DRAWDOWN_SHEET_NAME, DRAWDOWN_KEY_FIELD);
     const sheet = getLosSheet_();
     const headers = ensureColumns_(sheet, [keyField].concat(columnsToUpdate));
     const applicationIdColumn = headers.indexOf(keyField) + 1;
@@ -250,7 +251,7 @@ function getSpreadsheet_() {
   return ss;
 }
 
-function getApplicationIdsFromSheet_(ss, sheetName, keyField) {
+function getApplicationIdsFromSheet_(ss, sheetName, sheetKeyField) {
   const sheet = ss.getSheetByName(sheetName);
   const applicationIds = {};
 
@@ -261,10 +262,10 @@ function getApplicationIdsFromSheet_(ss, sheetName, keyField) {
   const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1))
     .getDisplayValues()[0]
     .map(header => String(header).trim());
-  const applicationIdColumn = headers.indexOf(keyField) + 1;
+  const applicationIdColumn = headers.indexOf(sheetKeyField) + 1;
 
   if (applicationIdColumn <= 0) {
-    throw new Error(keyField + " column not found in " + sheetName + " sheet.");
+    throw new Error(sheetKeyField + " column not found in " + sheetName + " sheet.");
   }
 
   sheet
@@ -273,7 +274,7 @@ function getApplicationIdsFromSheet_(ss, sheetName, keyField) {
     .flat()
     .map(value => String(value).trim())
     .forEach(id => {
-      if (id && id !== keyField) {
+      if (id && id !== sheetKeyField) {
         applicationIds[id] = true;
       }
     });
