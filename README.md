@@ -60,6 +60,14 @@ The main sheet tab must be named:
 LOS_Data
 ```
 
+Add another sheet tab named:
+
+```text
+DD
+```
+
+The `DD` tab must include an `APPLICATION_NUMBER_ID` column. During sync, any application ID found in `DD` is skipped and removed from `LOS_Data`, so the dashboard only shows cases that are not yet drawdown.
+
 Paste `google-apps-script/Code.gs` into:
 
 ```text
