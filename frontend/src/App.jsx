@@ -4,13 +4,9 @@ import {
   Bell,
   CalendarDays,
   CheckCircle2,
-  Clock3,
   Database,
-  DollarSign,
-  FolderOpen,
   RefreshCw,
 } from 'lucide-react';
-import KpiCard from './components/KpiCard.jsx';
 import FilterBar from './components/FilterBar.jsx';
 import CaseTable from './components/CaseTable.jsx';
 import TrendLineChart from './components/TrendLineChart.jsx';
@@ -18,10 +14,9 @@ import WorkflowTracker from './components/WorkflowTracker.jsx';
 import RemarkModal from './components/RemarkModal.jsx';
 import chipMongBankLogo from './assets/chip-mong-bank-logo.png.jpg';
 import { fetchLosCases, saveCaseRemark } from './services/sheetApi.js';
-import { formatCompactCurrency, toNumber } from './utils/format.js';
 import { getLosDays } from './utils/dateUtils.js';
 import { getRemarkText } from './utils/remarks.js';
-import { isTerminalStatus, normalizeStatus, statusOrder, statusMatches } from './utils/statusUtils.js';
+import { normalizeStatus, statusOrder, statusMatches } from './utils/statusUtils.js';
 
 function unique(values) {
   return [...new Set(values.filter(Boolean))].sort();
@@ -132,15 +127,6 @@ export default function App() {
     return rows;
   }, [cases, filters]);
 
-  const metrics = useMemo(() => {
-    const total = cases.length;
-    const drawdown = cases.filter(row => statusMatches(row.STATUS, ['Drawdown']));
-    const active = cases.filter(row => !isTerminalStatus(row.STATUS));
-    const amount = drawdown.reduce((sum, row) => sum + toNumber(row.TOTAL_NEW_REQUEST_AMOUNT), 0);
-    const avgLosDays = total ? Math.round(cases.reduce((sum, row) => sum + getLosDays(row), 0) / total) : 0;
-    return { total, drawdown: drawdown.length, active: active.length, amount, avgLosDays };
-  }, [cases]);
-
   const branches = useMemo(() => unique(cases.map(row => row.BRANCH_NAME)), [cases]);
   const products = useMemo(() => unique(cases.map(row => row.PRODUCTS)), [cases]);
   const statuses = useMemo(() => {
@@ -232,37 +218,6 @@ export default function App() {
             <button onClick={loadData}>Retry</button>
           </div>
         ) : null}
-
-        <section className="kpi-grid" aria-label="LOS case summary">
-          <KpiCard
-            icon={<FolderOpen />}
-            title="Total Cases"
-            value={metrics.total}
-            helper="All LOS applications in the current data source"
-            tone="blue"
-          />
-          <KpiCard
-            icon={<Clock3 />}
-            title="Active Cases"
-            value={metrics.active}
-            helper="Excludes approved, drawdown, rejected, and cancelled cases"
-            tone="orange"
-          />
-          <KpiCard
-            icon={<CheckCircle2 />}
-            title="Drawdown Cases"
-            value={metrics.drawdown}
-            helper="Applications with Drawdown status"
-            tone="green"
-          />
-          <KpiCard
-            icon={<DollarSign />}
-            title="Drawdown Amount"
-            value={formatCompactCurrency(metrics.amount)}
-            helper="Total new request amount for drawdown cases"
-            tone="blue"
-          />
-        </section>
 
         <WorkflowTracker cases={cases} />
 
