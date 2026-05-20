@@ -1,21 +1,8 @@
 import React from 'react';
-
-export const statusOrder = [
-  'RM Submission',
-  'BM Review',
-  'Credit Assessment',
-  'Credit Operation',
-  'Approval Committee',
-  'Legal & Documentation',
-  'Disbursement Preparation',
-  'Drawdown',
-  'Returned to RM',
-  'Rejected',
-  'Cancelled'
-];
+import { normalizeStatus } from '../utils/statusUtils.js';
 
 export function getStatusClass(status = '') {
-  const s = status.toLowerCase();
+  const s = normalizeStatus(status);
   if (s === 'drawdown' || s === 'approved') return 'success';
   if (s.includes('returned')) return 'warning';
   if (s.includes('reject')) return 'danger';
@@ -28,7 +15,7 @@ export function getStatusClass(status = '') {
 
 export function getStatusLabel(status = '') {
   const label = String(status || '-').trim();
-  const normalized = label.toLowerCase();
+  const normalized = normalizeStatus(label);
 
   const labels = {
     'rm submission': 'RM Submit',

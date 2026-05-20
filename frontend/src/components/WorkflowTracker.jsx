@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { getLosDays } from '../utils/dateUtils.js';
+import { statusMatches } from '../utils/statusUtils.js';
 
 const FLOW_STEPS = [
   {
@@ -126,13 +127,12 @@ const SPECIAL_STEPS = [
 ];
 
 export default function WorkflowTracker({ cases }) {
-  const [activeStep, setActiveStep] = useState(null);
+  const [activeStepId, setActiveStepId] = useState(null);
   const [showSpecial, setShowSpecial] = useState(false);
 
   const stepData = useMemo(() => FLOW_STEPS.map(step => {
     const matchingCases = cases.filter(row => {
-      const status = (row.STATUS || '').trim();
-      return step.statuses.some(s => s.toLowerCase() === status.toLowerCase());
+      return statusMatches(row.STATUS, step.statuses);
     });
     return { ...step, cases: matchingCases, count: matchingCases.length };
   }), [cases]);
@@ -142,14 +142,16 @@ export default function WorkflowTracker({ cases }) {
 
   const specialData = useMemo(() => SPECIAL_STEPS.map(step => {
     const matchingCases = cases.filter(row => {
-      const status = (row.STATUS || '').trim();
-      return step.statuses.some(s => s.toLowerCase() === status.toLowerCase());
+      return statusMatches(row.STATUS, step.statuses);
     });
     return { ...step, cases: matchingCases, count: matchingCases.length };
   }), [cases]);
 
+  const allSteps = useMemo(() => [...stepData, ...specialData], [stepData, specialData]);
+  const activeStep = allSteps.find(step => step.id === activeStepId) || null;
+
   function handleStepClick(step) {
-    setActiveStep(prev => prev?.id === step.id ? null : step);
+    setActiveStepId(prev => prev === step.id ? null : step.id);
   }
 
   return (
@@ -176,13 +178,13 @@ export default function WorkflowTracker({ cases }) {
           {stepData.map((step, index) => (
             <React.Fragment key={step.id}>
               <div
-                className={`wf-step${step.count > 0 ? ' wf-has-cases' : ''}${activeStep?.id === step.id ? ' wf-hovered' : ''}`}
+                className={`wf-step${step.count > 0 ? ' wf-has-cases' : ''}${activeStepId === step.id ? ' wf-hovered' : ''}`}
                 style={{ '--sc': step.color, '--ss': step.softColor }}
                 onClick={() => handleStepClick(step)}
                 role="button"
                 tabIndex={0}
                 aria-label={`${step.label}: ${step.count} cases`}
-                onKeyDown={e => e.key === 'Enter' && setActiveStep(step)}
+                onKeyDown={e => e.key === 'Enter' && handleStepClick(step)}
               >
                 <div className="wf-step-num">{index + 1}</div>
                 <div className="wf-step-label">{step.label}</div>
@@ -219,7 +221,7 @@ export default function WorkflowTracker({ cases }) {
             {specialData.map(step => (
               <div
                 key={step.id}
-                className={`wf-step wf-special-step${step.count > 0 ? ' wf-has-cases' : ''}${activeStep?.id === step.id ? ' wf-hovered' : ''}`}
+                className={`wf-step wf-special-step${step.count > 0 ? ' wf-has-cases' : ''}${activeStepId === step.id ? ' wf-hovered' : ''}`}
                 style={{ '--sc': step.color, '--ss': step.softColor }}
                 onClick={() => handleStepClick(step)}
                 role="button"
@@ -237,7 +239,7 @@ export default function WorkflowTracker({ cases }) {
 
       {activeStep && (
         <>
-          <div className="wf-overlay" onClick={() => setActiveStep(null)} />
+          <div className="wf-overlay" onClick={() => setActiveStepId(null)} />
           <div
             className="wf-popup"
             role="dialog"
@@ -254,7 +256,7 @@ export default function WorkflowTracker({ cases }) {
                   <p>{activeStep.fullName}</p>
                 </div>
               </div>
-              <button className="wf-close-btn" onClick={() => setActiveStep(null)} aria-label="Close">
+              <button className="wf-close-btn" onClick={() => setActiveStepId(null)} aria-label="Close">
                 <X size={17} />
               </button>
             </div>

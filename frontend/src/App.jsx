@@ -21,9 +21,7 @@ import { fetchLosCases, saveCaseRemark } from './services/sheetApi.js';
 import { formatCompactCurrency, toNumber } from './utils/format.js';
 import { getLosDays } from './utils/dateUtils.js';
 import { getRemarkText } from './utils/remarks.js';
-import { statusOrder } from './components/StatusBadge.jsx';
-
-const terminalStatuses = new Set(['Drawdown', 'Rejected', 'Cancelled']);
+import { isTerminalStatus, normalizeStatus, statusOrder, statusMatches } from './utils/statusUtils.js';
 
 function unique(values) {
   return [...new Set(values.filter(Boolean))].sort();
@@ -118,7 +116,7 @@ export default function App() {
         .toLowerCase();
 
       return (!search || searchable.includes(search))
-        && (filters.status === 'All' || row.STATUS === filters.status)
+        && (filters.status === 'All' || statusMatches(row.STATUS, [filters.status]))
         && (filters.branch === 'All' || row.BRANCH_NAME === filters.branch)
         && (filters.product === 'All' || row.PRODUCTS === filters.product);
     });
@@ -136,8 +134,8 @@ export default function App() {
 
   const metrics = useMemo(() => {
     const total = cases.length;
-    const drawdown = cases.filter(row => row.STATUS === 'Drawdown');
-    const active = cases.filter(row => !terminalStatuses.has(row.STATUS));
+    const drawdown = cases.filter(row => statusMatches(row.STATUS, ['Drawdown']));
+    const active = cases.filter(row => !isTerminalStatus(row.STATUS));
     const amount = drawdown.reduce((sum, row) => sum + toNumber(row.TOTAL_NEW_REQUEST_AMOUNT), 0);
     const avgLosDays = total ? Math.round(cases.reduce((sum, row) => sum + getLosDays(row), 0) / total) : 0;
     return { total, drawdown: drawdown.length, active: active.length, amount, avgLosDays };
@@ -146,9 +144,21 @@ export default function App() {
   const branches = useMemo(() => unique(cases.map(row => row.BRANCH_NAME)), [cases]);
   const products = useMemo(() => unique(cases.map(row => row.PRODUCTS)), [cases]);
   const statuses = useMemo(() => {
-    const present = new Set(cases.map(row => row.STATUS).filter(Boolean));
-    const ordered = statusOrder.filter(status => present.has(status));
-    return [...ordered, ...[...present].filter(status => !ordered.includes(status)).sort()];
+    const statusByKey = new Map();
+    cases.forEach(row => {
+      const status = String(row.STATUS || '').trim();
+      const key = normalizeStatus(status);
+      if (key && !statusByKey.has(key)) statusByKey.set(key, status);
+    });
+
+    const ordered = statusOrder.filter(status => statusByKey.has(normalizeStatus(status)));
+    const orderedKeys = new Set(ordered.map(normalizeStatus));
+    const remaining = [...statusByKey.entries()]
+      .filter(([key]) => !orderedKeys.has(key))
+      .map(([, status]) => status)
+      .sort();
+
+    return [...ordered, ...remaining];
   }, [cases]);
 
   async function handleSaveRemark(row, remark) {
@@ -222,6 +232,37 @@ export default function App() {
             <button onClick={loadData}>Retry</button>
           </div>
         ) : null}
+
+        <section className="kpi-grid" aria-label="LOS case summary">
+          <KpiCard
+            icon={<FolderOpen />}
+            title="Total Cases"
+            value={metrics.total}
+            helper="All LOS applications in the current data source"
+            tone="blue"
+          />
+          <KpiCard
+            icon={<Clock3 />}
+            title="Active Cases"
+            value={metrics.active}
+            helper="Excludes approved, drawdown, rejected, and cancelled cases"
+            tone="orange"
+          />
+          <KpiCard
+            icon={<CheckCircle2 />}
+            title="Drawdown Cases"
+            value={metrics.drawdown}
+            helper="Applications with Drawdown status"
+            tone="green"
+          />
+          <KpiCard
+            icon={<DollarSign />}
+            title="Drawdown Amount"
+            value={formatCompactCurrency(metrics.amount)}
+            helper="Total new request amount for drawdown cases"
+            tone="blue"
+          />
+        </section>
 
         <WorkflowTracker cases={cases} />
 
