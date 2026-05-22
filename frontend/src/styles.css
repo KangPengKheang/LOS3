@@ -609,6 +609,46 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
 .loader { padding: 38px; color: var(--gray); text-align: center; }
 .table-footer { padding: 16px 26px; color: var(--gray); font-size: 13px; }
 
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--line);
+  background: #fafbfd;
+}
+.pg-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: #465878;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.pg-btn:hover:not(:disabled) { background: #eef2ff; border-color: #a5b4fc; }
+.pg-btn:disabled { opacity: .38; cursor: default; }
+.pg-info { font-size: 13px; color: var(--gray); }
+.pg-input {
+  width: 52px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  text-align: center;
+  font-size: 13px;
+  color: #1a2740;
+  background: #fff;
+  outline: none;
+}
+.pg-input:focus { border-color: #1463d8; }
+.pg-input::-webkit-inner-spin-button,
+.pg-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.pg-count { margin-left: 8px; font-size: 13px; color: var(--gray); }
+
 .toast-success {
   position: fixed;
   top: 28px;
