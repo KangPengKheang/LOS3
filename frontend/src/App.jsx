@@ -18,6 +18,9 @@ import { getLosDays } from './utils/dateUtils.js';
 import { getRemarkText } from './utils/remarks.js';
 import { normalizeStatus, statusOrder, statusMatches } from './utils/statusUtils.js';
 
+const EXCLUDED_PRODUCTS = new Set(['Credit Card', 'Credit Card Against TD']);
+const EXCLUDED_LOAN_TYPES = new Set(['Restructure', 'Other Request']);
+
 function unique(values) {
   return [...new Set(values.filter(Boolean))].sort();
 }
@@ -77,7 +80,11 @@ export default function App() {
       setLoading(true);
       setError('');
       const result = await fetchLosCases();
-      setCases(result.data || []);
+      const allowed = (result.data || []).filter(row =>
+        !EXCLUDED_PRODUCTS.has(row.PRODUCTS) &&
+        !EXCLUDED_LOAN_TYPES.has(row.LOAN_TYPE)
+      );
+      setCases(allowed);
       setSource(result.source);
     } catch (err) {
       setError(err.message || 'Failed to fetch Google Sheet data');
