@@ -185,6 +185,25 @@ export default function App() {
     return [...ordered, ...remaining];
   }, [cases, filters.search, filters.branch, filters.product]);
 
+  // Auto-reset a filter value when it's no longer in the valid options
+  useEffect(() => {
+    if (filters.status !== 'All' && !statuses.includes(filters.status)) {
+      setFilters(prev => ({ ...prev, status: 'All' }));
+    }
+  }, [statuses]);
+
+  useEffect(() => {
+    if (filters.branch !== 'All' && !branches.includes(filters.branch)) {
+      setFilters(prev => ({ ...prev, branch: 'All' }));
+    }
+  }, [branches]);
+
+  useEffect(() => {
+    if (filters.product !== 'All' && !products.includes(filters.product)) {
+      setFilters(prev => ({ ...prev, product: 'All' }));
+    }
+  }, [products]);
+
   async function handleSaveRemark(row, remark) {
     const applicationId = row.APPLICATION_NUMBER_ID;
     const updatedBy = 'Current User';
