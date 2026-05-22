@@ -243,7 +243,7 @@ export default function App() {
             <button className="refresh-btn" onClick={loadData} disabled={loading}><RefreshCw size={16} /> Refresh</button>
           </div>
 
-          <TrendLineChart rows={cases} branches={branches} />
+          <TrendLineChart rows={filtered} branches={branches} />
 
           {loading
             ? <div className="loader">Loading LOS cases...</div>
