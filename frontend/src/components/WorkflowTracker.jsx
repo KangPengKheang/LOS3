@@ -129,23 +129,33 @@ const SPECIAL_STEPS = [
 export default function WorkflowTracker({ cases }) {
   const [activeStepId, setActiveStepId] = useState(null);
   const [showSpecial, setShowSpecial] = useState(false);
+  const [wfBranch, setWfBranch] = useState('All');
+
+  const wfBranches = useMemo(() => {
+    const unique = [...new Set(cases.map(r => r.BRANCH_NAME).filter(Boolean))].sort();
+    return unique;
+  }, [cases]);
+
+  const workflowCases = useMemo(() =>
+    wfBranch === 'All' ? cases : cases.filter(r => r.BRANCH_NAME === wfBranch),
+  [cases, wfBranch]);
 
   const stepData = useMemo(() => FLOW_STEPS.map(step => {
-    const matchingCases = cases.filter(row => {
+    const matchingCases = workflowCases.filter(row => {
       return statusMatches(row.STATUS, step.statuses);
     });
     return { ...step, cases: matchingCases, count: matchingCases.length };
-  }), [cases]);
+  }), [workflowCases]);
 
   const totalActive = stepData.reduce((sum, s) => sum + s.count, 0);
   const stagesWithCases = stepData.filter(s => s.count > 0).length;
 
   const specialData = useMemo(() => SPECIAL_STEPS.map(step => {
-    const matchingCases = cases.filter(row => {
+    const matchingCases = workflowCases.filter(row => {
       return statusMatches(row.STATUS, step.statuses);
     });
     return { ...step, cases: matchingCases, count: matchingCases.length };
-  }), [cases]);
+  }), [workflowCases]);
 
   const allSteps = useMemo(() => [...stepData, ...specialData], [stepData, specialData]);
   const activeStep = allSteps.find(step => step.id === activeStepId) || null;
@@ -167,6 +177,15 @@ export default function WorkflowTracker({ cases }) {
               <span className="wf-dot-active" />
               <strong>{totalActive}</strong> active cases across <strong>{stagesWithCases}</strong> stages
             </div>
+            <select
+              className="select-input wf-branch-select"
+              value={wfBranch}
+              onChange={e => setWfBranch(e.target.value)}
+              aria-label="Filter workflow by branch"
+            >
+              <option value="All">Branch: All</option>
+              {wfBranches.map(b => <option key={b} value={b}>{b}</option>)}
+            </select>
             <div className="workflow-legend">
               <span className="wf-legend-item"><span className="wf-dot-active" /> Active</span>
               <span className="wf-legend-item"><span className="wf-dot-idle" /> No cases</span>

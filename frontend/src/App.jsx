@@ -219,7 +219,16 @@ export default function App() {
           </div>
         ) : null}
 
-        <WorkflowTracker cases={cases} />
+        <FilterBar
+            filters={filters}
+            setFilters={setFilters}
+            branches={branches}
+            products={products}
+            statuses={statuses}
+            onExport={() => exportCsv(filtered)}
+          />
+
+        <WorkflowTracker cases={filtered} />
 
         <section className="panel">
           <div className="panel-head">
@@ -235,15 +244,6 @@ export default function App() {
           </div>
 
           <TrendLineChart rows={cases} branches={branches} />
-
-          <FilterBar
-            filters={filters}
-            setFilters={setFilters}
-            branches={branches}
-            products={products}
-            statuses={statuses}
-            onExport={() => exportCsv(filtered)}
-          />
 
           {loading
             ? <div className="loader">Loading LOS cases...</div>
