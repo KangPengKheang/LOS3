@@ -126,17 +126,19 @@ const SPECIAL_STEPS = [
   },
 ];
 
-export default function WorkflowTracker({ cases, branches = [] }) {
+export default function WorkflowTracker({ cases, branches = [], globalBranch = 'All' }) {
   const [activeStepId, setActiveStepId] = useState(null);
   const [showSpecial, setShowSpecial] = useState(false);
   const [wfBranch, setWfBranch] = useState('All');
 
-  // Reset section branch filter if it's no longer available in the current options
+  // Global filter is strongest — force section filter to match it when set
   useEffect(() => {
-    if (wfBranch !== 'All' && !branches.includes(wfBranch)) {
+    if (globalBranch !== 'All') {
+      setWfBranch(globalBranch);
+    } else if (wfBranch !== 'All' && !branches.includes(wfBranch)) {
       setWfBranch('All');
     }
-  }, [branches, wfBranch]);
+  }, [globalBranch, branches]);
 
   const workflowCases = useMemo(() =>
     wfBranch === 'All' ? cases : cases.filter(r => r.BRANCH_NAME === wfBranch),
@@ -183,6 +185,7 @@ export default function WorkflowTracker({ cases, branches = [] }) {
               className="select-input wf-branch-select"
               value={wfBranch}
               onChange={e => setWfBranch(e.target.value)}
+              disabled={globalBranch !== 'All'}
               aria-label="Filter workflow by branch"
             >
               <option value="All">Branch: All</option>

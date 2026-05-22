@@ -266,7 +266,7 @@ export default function App() {
             onExport={() => exportCsv(filtered)}
           />
 
-        <WorkflowTracker cases={filtered} branches={branches} />
+        <WorkflowTracker cases={filtered} branches={branches} globalBranch={filters.branch} />
 
         <section className="panel">
           <div className="panel-head">
