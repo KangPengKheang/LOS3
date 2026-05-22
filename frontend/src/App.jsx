@@ -291,11 +291,6 @@ export default function App() {
           <div className="panel-head">
             <div>
               <h2>Case Tracking Table</h2>
-              <p>Core view: monitor where each case currently stands by workflow STATUS.</p>
-              <div className="helper-note">
-                <AlertCircle size={16} />
-                <span>Click customer name to add or edit remark. Hover or click Remarked to view the saved detail.</span>
-              </div>
             </div>
             <button className="refresh-btn" onClick={loadData} disabled={loading}><RefreshCw size={16} /> Refresh</button>
           </div>

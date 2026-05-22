@@ -137,7 +137,6 @@ export default function TrendLineChart({ rows, branches }) {
       <div className="trend-head">
         <div>
           <h3>LOS Applications Trend</h3>
-          <p>Track incoming case volume over time by day, week, or month, with branch-level filtering.</p>
         </div>
         <div className="trend-controls">
           <div className="pill-group" role="group" aria-label="Trend granularity">
@@ -166,22 +165,7 @@ export default function TrendLineChart({ rows, branches }) {
         </div>
       </div>
 
-      <div className="trend-stats">
-        <div className="trend-stat-card">
-          <CalendarRange size={16} />
-          <span>Total Applications</span>
-          <strong>{stats.total}</strong>
-        </div>
-        <div className="trend-stat-card">
-          <TrendingUp size={16} />
-          <span>Peak Period</span>
-          <strong>{stats.peak.label}</strong>
-        </div>
-        <div className="trend-stat-card">
-          <span>Avg / Period</span>
-          <strong>{stats.average}</strong>
-        </div>
-      </div>
+
 
       {chart.points.length ? (
         <div className="trend-chart-wrap">
