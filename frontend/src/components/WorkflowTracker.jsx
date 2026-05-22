@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { getLosDays } from '../utils/dateUtils.js';
 import { statusMatches } from '../utils/statusUtils.js';
@@ -126,15 +126,17 @@ const SPECIAL_STEPS = [
   },
 ];
 
-export default function WorkflowTracker({ cases }) {
+export default function WorkflowTracker({ cases, branches = [] }) {
   const [activeStepId, setActiveStepId] = useState(null);
   const [showSpecial, setShowSpecial] = useState(false);
   const [wfBranch, setWfBranch] = useState('All');
 
-  const wfBranches = useMemo(() => {
-    const unique = [...new Set(cases.map(r => r.BRANCH_NAME).filter(Boolean))].sort();
-    return unique;
-  }, [cases]);
+  // Reset section branch filter if it's no longer available in the current options
+  useEffect(() => {
+    if (wfBranch !== 'All' && !branches.includes(wfBranch)) {
+      setWfBranch('All');
+    }
+  }, [branches, wfBranch]);
 
   const workflowCases = useMemo(() =>
     wfBranch === 'All' ? cases : cases.filter(r => r.BRANCH_NAME === wfBranch),
@@ -184,7 +186,7 @@ export default function WorkflowTracker({ cases }) {
               aria-label="Filter workflow by branch"
             >
               <option value="All">Branch: All</option>
-              {wfBranches.map(b => <option key={b} value={b}>{b}</option>)}
+              {branches.map(b => <option key={b} value={b}>{b}</option>)}
             </select>
             <div className="workflow-legend">
               <span className="wf-legend-item"><span className="wf-dot-active" /> Active</span>
