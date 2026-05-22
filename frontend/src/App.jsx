@@ -127,25 +127,63 @@ export default function App() {
     return rows;
   }, [cases, filters]);
 
-  const branches = useMemo(() => unique(cases.map(row => row.BRANCH_NAME)), [cases]);
-  const products = useMemo(() => unique(cases.map(row => row.PRODUCTS)), [cases]);
+  // Cascading filter options — each set of options is derived from cases
+  // filtered by all OTHER active filters, so dropdowns only show valid choices.
+  const baseFilter = (row, search) => {
+    const searchable = [
+      row.APPLICATION_NUMBER_ID,
+      row.CUSTOMER_NAME,
+      row.BRANCH_NAME,
+      row.RM_NAME,
+      row.APPLICATION_SOURCE,
+      row.PRODUCTS,
+      row.STATUS,
+      getRemarkText(row),
+    ].join(' ').toLowerCase();
+    return !search || searchable.includes(search);
+  };
+
+  const branches = useMemo(() => {
+    const search = filters.search.trim().toLowerCase();
+    const pool = cases.filter(row =>
+      baseFilter(row, search)
+      && (filters.status === 'All' || statusMatches(row.STATUS, [filters.status]))
+      && (filters.product === 'All' || row.PRODUCTS === filters.product)
+    );
+    return unique(pool.map(row => row.BRANCH_NAME));
+  }, [cases, filters.search, filters.status, filters.product]);
+
+  const products = useMemo(() => {
+    const search = filters.search.trim().toLowerCase();
+    const pool = cases.filter(row =>
+      baseFilter(row, search)
+      && (filters.status === 'All' || statusMatches(row.STATUS, [filters.status]))
+      && (filters.branch === 'All' || row.BRANCH_NAME === filters.branch)
+    );
+    return unique(pool.map(row => row.PRODUCTS));
+  }, [cases, filters.search, filters.status, filters.branch]);
+
   const statuses = useMemo(() => {
+    const search = filters.search.trim().toLowerCase();
+    const pool = cases.filter(row =>
+      baseFilter(row, search)
+      && (filters.branch === 'All' || row.BRANCH_NAME === filters.branch)
+      && (filters.product === 'All' || row.PRODUCTS === filters.product)
+    );
     const statusByKey = new Map();
-    cases.forEach(row => {
+    pool.forEach(row => {
       const status = String(row.STATUS || '').trim();
       const key = normalizeStatus(status);
       if (key && !statusByKey.has(key)) statusByKey.set(key, status);
     });
-
     const ordered = statusOrder.filter(status => statusByKey.has(normalizeStatus(status)));
     const orderedKeys = new Set(ordered.map(normalizeStatus));
     const remaining = [...statusByKey.entries()]
       .filter(([key]) => !orderedKeys.has(key))
       .map(([, status]) => status)
       .sort();
-
     return [...ordered, ...remaining];
-  }, [cases]);
+  }, [cases, filters.search, filters.branch, filters.product]);
 
   async function handleSaveRemark(row, remark) {
     const applicationId = row.APPLICATION_NUMBER_ID;
