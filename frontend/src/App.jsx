@@ -5,6 +5,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Database,
+  FileDown,
   RefreshCw,
 } from 'lucide-react';
 import FilterBar from './components/FilterBar.jsx';
@@ -17,6 +18,7 @@ import { fetchLosCases, saveCaseRemark } from './services/sheetApi.js';
 import { getLosDays } from './utils/dateUtils.js';
 import { getRemarkText } from './utils/remarks.js';
 import { normalizeStatus, statusOrder, statusMatches } from './utils/statusUtils.js';
+import ExportPdfModal from './components/ExportPdfModal.jsx';
 
 const EXCLUDED_PRODUCTS = new Set(['Credit Card', 'Credit Card Against TD']);
 const EXCLUDED_LOAN_TYPES = new Set(['Restructure', 'Other Request']);
@@ -67,6 +69,7 @@ export default function App() {
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
   const [selectedCase, setSelectedCase] = useState(null);
+  const [showPdfModal, setShowPdfModal] = useState(false);
   const [filters, setFilters] = useState({
     search: '',
     status: 'All',
@@ -259,6 +262,14 @@ export default function App() {
             </div>
           </div>
           <div className="topbar-actions">
+            <button
+              className="export-pdf-btn"
+              type="button"
+              onClick={() => setShowPdfModal(true)}
+            >
+              <FileDown size={17} />
+              Export PDF
+            </button>
             <button className="icon-btn" type="button" aria-label="Calendar"><CalendarDays size={20} /></button>
             <button className="icon-btn" type="button" aria-label="Notifications"><Bell size={20} /></button>
             <div className="avatar-chip">MS</div>
@@ -317,6 +328,13 @@ export default function App() {
         onClose={() => setSelectedCase(null)}
         onSave={handleSaveRemark}
       />
+
+      {showPdfModal && (
+        <ExportPdfModal
+          cases={cases}
+          onClose={() => setShowPdfModal(false)}
+        />
+      )}
     </div>
   );
 }
