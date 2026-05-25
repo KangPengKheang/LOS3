@@ -4,6 +4,7 @@ import { statusMatches } from '../utils/statusUtils.js';
 import { parseDate } from '../utils/dateUtils.js';
 import { FLOW_STEPS, SPECIAL_STEPS } from './WorkflowTracker.jsx';
 import { BRANCH_MASTER_LIST } from '../data/branchMasterList.js';
+import chipMongBankLogo from '../assets/chip-mong-bank-logo.png.jpg';
 
 // All workflow columns in PDF order: pipeline steps then special outcomes
 const ALL_STEPS = [...FLOW_STEPS, ...SPECIAL_STEPS];
@@ -145,7 +146,31 @@ function getDateBounds(rows) {
   };
 }
 
-function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix, dateFrom, dateTo) {
+function loadImageDataUrl(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(null);
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/jpeg', 0.95));
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix, dateFrom, dateTo, logoDataUrl) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const W = 297;
   const H = 210;
@@ -157,15 +182,19 @@ function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix
   // Logo block
   doc.setFillColor(...CM.mid);
   doc.roundedRect(8, 5, 38, 20, 2, 2, 'F');
-  doc.setFillColor(...CM.light);
-  doc.roundedRect(10, 7, 34, 16, 1.5, 1.5, 'F');
-  doc.setTextColor(...CM.dark);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.text('CHIP MONG', 27, 13.5, { align: 'center' });
-  doc.setFontSize(6.5);
-  doc.setFont('helvetica', 'normal');
-  doc.text('BANK', 27, 19, { align: 'center' });
+  doc.setFillColor(...CM.white);
+  doc.roundedRect(9.5, 6.5, 35, 17, 1.5, 1.5, 'F');
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, 'JPEG', 10.5, 7.2, 33, 15.5, undefined, 'FAST');
+  } else {
+    doc.setTextColor(...CM.dark);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text('CHIP MONG', 27, 13.5, { align: 'center' });
+    doc.setFontSize(6.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text('BANK', 27, 19, { align: 'center' });
+  }
 
   // Title
   doc.setFontSize(17);
@@ -385,9 +414,10 @@ export default function ExportPdfModal({ cases, onClose }) {
     Promise.all([
       import('jspdf').then(m => m.jsPDF),
       import('jspdf-autotable').then(m => m.default),
-    ]).then(([jsPDF, autoTable]) => {
+      loadImageDataUrl(chipMongBankLogo),
+    ]).then(([jsPDF, autoTable, logoDataUrl]) => {
       try {
-        generatePdf(jsPDF, autoTable, filtered, sortedBranches, inactiveBranches, matrix, dateFrom, dateTo);
+        generatePdf(jsPDF, autoTable, filtered, sortedBranches, inactiveBranches, matrix, dateFrom, dateTo, logoDataUrl);
       } finally {
         setGenerating(false);
       }
