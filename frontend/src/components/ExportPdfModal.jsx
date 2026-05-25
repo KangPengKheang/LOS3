@@ -24,18 +24,37 @@ const CM = {
 };
 
 function buildMatrix(cases, branches) {
+  const lookups = buildMasterLookups();
   const counts = {};
   branches.forEach(b => {
     counts[b] = {};
     ALL_STEPS.forEach(step => { counts[b][step.id] = 0; });
   });
   cases.forEach(row => {
-    const branch = String(row.BRANCH_NAME || '').trim();
+    const branch = getCanonicalBranchName(row, lookups);
     if (!branch || !counts[branch]) return;
     const step = ALL_STEPS.find(s => statusMatches(row.STATUS, s.statuses));
     if (step) counts[branch][step.id]++;
   });
   return counts;
+}
+
+function buildBranchCaseTotals(cases, branches) {
+  const lookups = buildMasterLookups();
+  const branchSet = new Set(branches);
+  const totals = {};
+
+  branches.forEach(branch => {
+    totals[branch] = 0;
+  });
+
+  cases.forEach(row => {
+    const branch = getCanonicalBranchName(row, lookups);
+    if (!branch || !branchSet.has(branch)) return;
+    totals[branch] += 1;
+  });
+
+  return totals;
 }
 
 function normalizeName(value) {
@@ -56,21 +75,41 @@ function getRowBranchCode(row) {
   );
 }
 
+function buildMasterLookups() {
+  const byName = new Map();
+  const byCode = new Map();
+
+  BRANCH_MASTER_LIST.forEach(branch => {
+    byName.set(normalizeName(branch.name), branch);
+    if (branch.code) byCode.set(normalizeCode(branch.code), branch);
+  });
+
+  return { byName, byCode };
+}
+
+function getCanonicalBranchName(row, lookups) {
+  const rawName = String(row.BRANCH_NAME || '').trim();
+  if (!rawName) return '';
+
+  const code = getRowBranchCode(row);
+  const fromCode = code ? lookups.byCode.get(code) : null;
+  if (fromCode) return fromCode.name;
+
+  const fromName = lookups.byName.get(normalizeName(rawName));
+  if (fromName) return fromName.name;
+
+  return rawName;
+}
+
 function buildOrderedBranches(filteredCases) {
-  const branchByName = new Map();
-  const branchByCode = new Map();
+  const lookups = buildMasterLookups();
   const masterInactiveBranches = BRANCH_MASTER_LIST
     .filter(branch => branch.status === 'inactive')
     .map(branch => branch.name);
 
-  BRANCH_MASTER_LIST.forEach(branch => {
-    branchByName.set(normalizeName(branch.name), branch);
-    if (branch.code) branchByCode.set(normalizeCode(branch.code), branch);
-  });
-
   const dataBranches = [...new Set(
     filteredCases
-      .map(row => String(row.BRANCH_NAME || '').trim())
+      .map(row => getCanonicalBranchName(row, lookups))
       .filter(Boolean)
   )].sort((a, b) => a.localeCompare(b));
 
@@ -79,8 +118,7 @@ function buildOrderedBranches(filteredCases) {
 
   dataBranches.forEach(branchName => {
     const normalizedName = normalizeName(branchName);
-    const branchCode = getRowBranchCode(filteredCases.find(row => normalizeName(String(row.BRANCH_NAME || '').trim()) === normalizedName));
-    const masterBranch = branchByCode.get(branchCode) || branchByName.get(normalizedName);
+    const masterBranch = lookups.byName.get(normalizedName);
 
     if (masterBranch?.status === 'inactive') {
       return;
@@ -174,7 +212,7 @@ function loadImageDataUrl(src) {
   });
 }
 
-function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix, dateFrom, dateTo, logoMeta) {
+function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix, branchCaseTotals, grandTotal, dateFrom, dateTo, logoMeta) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const W = 297;
   const H = 210;
@@ -281,11 +319,10 @@ function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix
   const totalColIdx = ALL_STEPS.length + 1;
 
   const bodyRows = branches.map(branch => {
-    const rowTotal = ALL_STEPS.reduce((sum, s) => sum + (matrix[branch]?.[s.id] ?? 0), 0);
+    const rowTotal = branchCaseTotals[branch] ?? 0;
     return [branch, ...ALL_STEPS.map(s => matrix[branch]?.[s.id] || 0), rowTotal];
   });
   const colTotals = ALL_STEPS.map(s => branches.reduce((sum, b) => sum + (matrix[b]?.[s.id] ?? 0), 0));
-  const grandTotal = colTotals.reduce((a, b) => a + b, 0);
   bodyRows.push(['TOTAL', ...colTotals, grandTotal]);
 
   autoTable(doc, {
@@ -412,22 +449,27 @@ export default function ExportPdfModal({ cases, onClose }) {
 
   const matrix = useMemo(() => buildMatrix(filtered, branches), [filtered, branches]);
 
+  const branchCaseTotals = useMemo(
+    () => buildBranchCaseTotals(filtered, branches),
+    [filtered, branches]
+  );
+
   const sortedBranches = useMemo(() => (
     [...branches].sort((a, b) => {
-      const aTotal = ALL_STEPS.reduce((sum, step) => sum + (matrix[a]?.[step.id] ?? 0), 0);
-      const bTotal = ALL_STEPS.reduce((sum, step) => sum + (matrix[b]?.[step.id] ?? 0), 0);
+      const aTotal = branchCaseTotals[a] ?? 0;
+      const bTotal = branchCaseTotals[b] ?? 0;
       if (bTotal !== aTotal) return bTotal - aTotal;
       return a.localeCompare(b);
     })
-  ), [branches, matrix]);
+  ), [branches, branchCaseTotals]);
 
   const colTotals = useMemo(() => (
     ALL_STEPS.map(s => branches.reduce((sum, b) => sum + (matrix[b]?.[s.id] ?? 0), 0))
   ), [branches, matrix]);
 
   const grandTotal = useMemo(
-    () => colTotals.reduce((sum, value) => sum + value, 0),
-    [colTotals]
+    () => sortedBranches.reduce((sum, branch) => sum + (branchCaseTotals[branch] ?? 0), 0),
+    [sortedBranches, branchCaseTotals]
   );
 
   function handleGenerate() {
@@ -439,7 +481,7 @@ export default function ExportPdfModal({ cases, onClose }) {
       loadImageDataUrl(chipMongBankLogo),
     ]).then(([jsPDF, autoTable, logoMeta]) => {
       try {
-        generatePdf(jsPDF, autoTable, filtered, sortedBranches, inactiveBranches, matrix, dateFrom, dateTo, logoMeta);
+        generatePdf(jsPDF, autoTable, filtered, sortedBranches, inactiveBranches, matrix, branchCaseTotals, grandTotal, dateFrom, dateTo, logoMeta);
       } finally {
         setGenerating(false);
       }
@@ -537,7 +579,7 @@ export default function ExportPdfModal({ cases, onClose }) {
                     </tr>
                   ) : (
                     sortedBranches.map(branch => {
-                      const rowTotal = ALL_STEPS.reduce((sum, s) => sum + (matrix[branch]?.[s.id] ?? 0), 0);
+                      const rowTotal = branchCaseTotals[branch] ?? 0;
                       return (
                         <tr key={branch}>
                           <td className="pdf-td-branch">{branch}</td>
