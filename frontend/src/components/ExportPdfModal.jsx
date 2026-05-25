@@ -160,7 +160,11 @@ function loadImageDataUrl(src) {
           return;
         }
         ctx.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/jpeg', 0.95));
+        resolve({
+          dataUrl: canvas.toDataURL('image/jpeg', 0.95),
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+        });
       } catch {
         resolve(null);
       }
@@ -170,7 +174,7 @@ function loadImageDataUrl(src) {
   });
 }
 
-function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix, dateFrom, dateTo, logoDataUrl) {
+function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix, dateFrom, dateTo, logoMeta) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const W = 297;
   const H = 210;
@@ -184,8 +188,26 @@ function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix
   doc.roundedRect(8, 5, 38, 20, 2, 2, 'F');
   doc.setFillColor(...CM.white);
   doc.roundedRect(9.5, 6.5, 35, 17, 1.5, 1.5, 'F');
-  if (logoDataUrl) {
-    doc.addImage(logoDataUrl, 'JPEG', 10.5, 7.2, 33, 15.5, undefined, 'FAST');
+  if (logoMeta?.dataUrl && logoMeta?.width && logoMeta?.height) {
+    const boxX = 10.5;
+    const boxY = 7.2;
+    const boxW = 33;
+    const boxH = 15.5;
+    const imageRatio = logoMeta.width / logoMeta.height;
+    const boxRatio = boxW / boxH;
+
+    let drawW = boxW;
+    let drawH = boxH;
+    if (imageRatio > boxRatio) {
+      drawH = boxW / imageRatio;
+    } else {
+      drawW = boxH * imageRatio;
+    }
+
+    const drawX = boxX + (boxW - drawW) / 2;
+    const drawY = boxY + (boxH - drawH) / 2;
+
+    doc.addImage(logoMeta.dataUrl, 'JPEG', drawX, drawY, drawW, drawH, undefined, 'FAST');
   } else {
     doc.setTextColor(...CM.dark);
     doc.setFont('helvetica', 'bold');
@@ -415,9 +437,9 @@ export default function ExportPdfModal({ cases, onClose }) {
       import('jspdf').then(m => m.jsPDF),
       import('jspdf-autotable').then(m => m.default),
       loadImageDataUrl(chipMongBankLogo),
-    ]).then(([jsPDF, autoTable, logoDataUrl]) => {
+    ]).then(([jsPDF, autoTable, logoMeta]) => {
       try {
-        generatePdf(jsPDF, autoTable, filtered, sortedBranches, inactiveBranches, matrix, dateFrom, dateTo, logoDataUrl);
+        generatePdf(jsPDF, autoTable, filtered, sortedBranches, inactiveBranches, matrix, dateFrom, dateTo, logoMeta);
       } finally {
         setGenerating(false);
       }
