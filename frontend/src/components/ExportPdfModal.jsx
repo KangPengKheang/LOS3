@@ -19,6 +19,7 @@ const CM = {
   white:   [255, 255, 255],
   gray:    [99,  112, 138],
   navy:    [11,   29,  74],
+  danger:  [200,   40,  40],
 };
 
 function buildMatrix(cases, branches) {
@@ -55,28 +56,49 @@ function getRowBranchCode(row) {
 }
 
 function buildOrderedBranches(filteredCases) {
+  const branchByName = new Map();
+  const branchByCode = new Map();
+
+  BRANCH_MASTER_LIST.forEach(branch => {
+    branchByName.set(normalizeName(branch.name), branch);
+    if (branch.code) branchByCode.set(normalizeCode(branch.code), branch);
+  });
+
   const dataBranches = [...new Set(
     filteredCases
       .map(row => String(row.BRANCH_NAME || '').trim())
       .filter(Boolean)
   )].sort((a, b) => a.localeCompare(b));
 
-  const existingNameSet = new Set(dataBranches.map(normalizeName));
-  const existingCodeSet = new Set(
-    filteredCases
-      .map(getRowBranchCode)
-      .filter(Boolean)
-  );
+  const activeBranches = [];
+  const inactiveBranches = [];
+  const seen = new Set();
 
-  const missingMasterBranches = BRANCH_MASTER_LIST
-    .filter(branch => {
-      const codeMatched = branch.code && existingCodeSet.has(normalizeCode(branch.code));
-      if (codeMatched) return false;
-      return !existingNameSet.has(normalizeName(branch.name));
-    })
-    .map(branch => branch.name);
+  dataBranches.forEach(branchName => {
+    const normalizedName = normalizeName(branchName);
+    const branchCode = getRowBranchCode(filteredCases.find(row => normalizeName(String(row.BRANCH_NAME || '').trim()) === normalizedName));
+    const masterBranch = branchByCode.get(branchCode) || branchByName.get(normalizedName);
 
-  return [...dataBranches, ...missingMasterBranches];
+    if (masterBranch?.status === 'inactive') {
+      inactiveBranches.push(masterBranch.name);
+      return;
+    }
+
+    activeBranches.push(branchName);
+    seen.add(normalizedName);
+  });
+
+  BRANCH_MASTER_LIST.forEach(branch => {
+    if (branch.status === 'inactive') return;
+    const codeMatched = branch.code && filteredCases.some(row => getRowBranchCode(row) === normalizeCode(branch.code));
+    if (codeMatched) return;
+    const normalizedName = normalizeName(branch.name);
+    if (seen.has(normalizedName)) return;
+    activeBranches.push(branch.name);
+    seen.add(normalizedName);
+  });
+
+  return { branches: activeBranches, inactiveBranches: [...new Set(inactiveBranches)] };
 }
 
 function fmtDate(iso) {
@@ -122,7 +144,7 @@ function getDateBounds(rows) {
   };
 }
 
-function generatePdf(jsPDF, autoTable, cases, branches, matrix, dateFrom, dateTo) {
+function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix, dateFrom, dateTo) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const W = 297;
   const H = 210;
@@ -206,7 +228,14 @@ function generatePdf(jsPDF, autoTable, cases, branches, matrix, dateFrom, dateTo
   const colHeaders = ALL_STEPS.map(s => s.label);
   const totalColIdx = ALL_STEPS.length + 1;
 
-  const bodyRows = branches.map(branch => {
+  const branchesByTotal = [...branches].sort((a, b) => {
+    const aTotal = ALL_STEPS.reduce((sum, step) => sum + (matrix[a]?.[step.id] ?? 0), 0);
+    const bTotal = ALL_STEPS.reduce((sum, step) => sum + (matrix[b]?.[step.id] ?? 0), 0);
+    if (bTotal !== aTotal) return bTotal - aTotal;
+    return a.localeCompare(b);
+  });
+
+  const bodyRows = branchesByTotal.map(branch => {
     const rowTotal = ALL_STEPS.reduce((sum, s) => sum + (matrix[branch]?.[s.id] ?? 0), 0);
     return [branch, ...ALL_STEPS.map(s => matrix[branch]?.[s.id] || 0), rowTotal];
   });
@@ -249,6 +278,18 @@ function generatePdf(jsPDF, autoTable, cases, branches, matrix, dateFrom, dateTo
         data.cell.styles.fillColor = CM.mid;
         data.cell.styles.textColor = CM.white;
         data.cell.styles.fontStyle = 'bold';
+      }
+
+      if (data.section === 'body' && data.column.index === totalColIdx) {
+        const val = Number(data.cell.raw);
+        data.cell.styles.fontStyle = 'bold';
+        if (Number.isFinite(val) && val <= 5) {
+          data.cell.styles.textColor = CM.danger;
+        } else if (isLastRow) {
+          data.cell.styles.textColor = CM.white;
+        } else {
+          data.cell.styles.textColor = CM.mid;
+        }
       } else if (data.section === 'body' && data.column.index > 0 && data.column.index < totalColIdx) {
         const val = Number(data.cell.raw);
         if (val > 0) {
@@ -276,6 +317,19 @@ function generatePdf(jsPDF, autoTable, cases, branches, matrix, dateFrom, dateTo
     },
     margin: { left: 8, right: 8, bottom: 13 },
   });
+
+  if (inactiveBranches.length > 0) {
+    const pageCount = doc.internal.getNumberOfPages();
+    doc.setPage(pageCount);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...CM.danger);
+    const note = `Inactive branches removed from table: ${inactiveBranches.join(', ')}`;
+    const noteLines = doc.splitTextToSize(note, W - 16);
+    const lineHeight = 3.1;
+    const startY = Math.max(H - 14 - (noteLines.length - 1) * lineHeight, 186);
+    doc.text(noteLines, 8, startY);
+  }
 
   const ds = `${(dateFrom || 'all').replace(/-/g, '')}to${(dateTo || 'all').replace(/-/g, '')}`;
   doc.save(`LOS_Branch_Workflow_${ds}.pdf`);
@@ -312,7 +366,7 @@ export default function ExportPdfModal({ cases, onClose }) {
     });
   }, [cases, dateFrom, dateTo]);
 
-  const branches = useMemo(() => (
+  const { branches, inactiveBranches } = useMemo(() => (
     buildOrderedBranches(filtered)
   ), [filtered]);
 
@@ -335,7 +389,7 @@ export default function ExportPdfModal({ cases, onClose }) {
       import('jspdf-autotable').then(m => m.default),
     ]).then(([jsPDF, autoTable]) => {
       try {
-        generatePdf(jsPDF, autoTable, filtered, branches, matrix, dateFrom, dateTo);
+        generatePdf(jsPDF, autoTable, filtered, branches, inactiveBranches, matrix, dateFrom, dateTo);
       } finally {
         setGenerating(false);
       }
