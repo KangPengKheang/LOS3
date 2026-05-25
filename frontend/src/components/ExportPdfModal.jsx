@@ -24,15 +24,15 @@ const CM = {
 };
 
 function buildMatrix(cases, branches) {
-  const lookups = buildMasterLookups();
+  const branchSet = new Set(branches);
   const counts = {};
   branches.forEach(b => {
     counts[b] = {};
     ALL_STEPS.forEach(step => { counts[b][step.id] = 0; });
   });
   cases.forEach(row => {
-    const branch = getCanonicalBranchName(row, lookups);
-    if (!branch || !counts[branch]) return;
+    const branch = String(row.BRANCH_NAME || '').trim();
+    if (!branch || !branchSet.has(branch)) return;
     const step = ALL_STEPS.find(s => statusMatches(row.STATUS, s.statuses));
     if (step) counts[branch][step.id]++;
   });
@@ -40,20 +40,14 @@ function buildMatrix(cases, branches) {
 }
 
 function buildBranchCaseTotals(cases, branches) {
-  const lookups = buildMasterLookups();
   const branchSet = new Set(branches);
   const totals = {};
-
-  branches.forEach(branch => {
-    totals[branch] = 0;
-  });
-
+  branches.forEach(branch => { totals[branch] = 0; });
   cases.forEach(row => {
-    const branch = getCanonicalBranchName(row, lookups);
+    const branch = String(row.BRANCH_NAME || '').trim();
     if (!branch || !branchSet.has(branch)) return;
     totals[branch] += 1;
   });
-
   return totals;
 }
 
@@ -75,67 +69,50 @@ function getRowBranchCode(row) {
   );
 }
 
-function buildMasterLookups() {
-  const byName = new Map();
-  const byCode = new Map();
-
+function buildOrderedBranches(filteredCases) {
+  // Inactive branch detection by both name and code from master list
+  const inactiveNames = new Set();
+  const inactiveCodes = new Set();
+  const masterInactiveBranches = [];
   BRANCH_MASTER_LIST.forEach(branch => {
-    byName.set(normalizeName(branch.name), branch);
-    if (branch.code) byCode.set(normalizeCode(branch.code), branch);
+    if (branch.status === 'inactive') {
+      inactiveNames.add(normalizeName(branch.name));
+      if (branch.code) inactiveCodes.add(normalizeCode(branch.code));
+      masterInactiveBranches.push(branch.name);
+    }
   });
 
-  return { byName, byCode };
-}
-
-function getCanonicalBranchName(row, lookups) {
-  const rawName = String(row.BRANCH_NAME || '').trim();
-  if (!rawName) return '';
-
-  const code = getRowBranchCode(row);
-  const fromCode = code ? lookups.byCode.get(code) : null;
-  if (fromCode) return fromCode.name;
-
-  const fromName = lookups.byName.get(normalizeName(rawName));
-  if (fromName) return fromName.name;
-
-  return rawName;
-}
-
-function buildOrderedBranches(filteredCases) {
-  const lookups = buildMasterLookups();
-  const masterInactiveBranches = BRANCH_MASTER_LIST
-    .filter(branch => branch.status === 'inactive')
-    .map(branch => branch.name);
-
-  const dataBranches = [...new Set(
+  // Raw branch names exactly as they appear in data — same as dashboard table
+  const rawBranches = [...new Set(
     filteredCases
-      .map(row => getCanonicalBranchName(row, lookups))
+      .map(row => String(row.BRANCH_NAME || '').trim())
       .filter(Boolean)
   )].sort((a, b) => a.localeCompare(b));
 
-  const activeBranches = [];
-  const seen = new Set();
-
-  dataBranches.forEach(branchName => {
-    const normalizedName = normalizeName(branchName);
-    const masterBranch = lookups.byName.get(normalizedName);
-
-    if (masterBranch?.status === 'inactive') {
-      return;
-    }
-
-    activeBranches.push(branchName);
-    seen.add(normalizedName);
+  // Filter out inactive branches by name or code
+  const activeBranches = rawBranches.filter(branchName => {
+    if (inactiveNames.has(normalizeName(branchName))) return false;
+    const sampleRow = filteredCases.find(r => String(r.BRANCH_NAME || '').trim() === branchName);
+    const code = sampleRow ? getRowBranchCode(sampleRow) : '';
+    if (code && inactiveCodes.has(code)) return false;
+    return true;
   });
 
+  // Track what's already covered by code and normalized name
+  const activeBranchNormNames = new Set(activeBranches.map(normalizeName));
+  const activeBranchCodes = new Set(
+    filteredCases
+      .filter(row => activeBranches.includes(String(row.BRANCH_NAME || '').trim()))
+      .map(getRowBranchCode)
+      .filter(Boolean)
+  );
+
+  // Append missing master active branches as zero rows at bottom
   BRANCH_MASTER_LIST.forEach(branch => {
     if (branch.status === 'inactive') return;
-    const codeMatched = branch.code && filteredCases.some(row => getRowBranchCode(row) === normalizeCode(branch.code));
-    if (codeMatched) return;
-    const normalizedName = normalizeName(branch.name);
-    if (seen.has(normalizedName)) return;
+    if (activeBranchNormNames.has(normalizeName(branch.name))) return;
+    if (branch.code && activeBranchCodes.has(normalizeCode(branch.code))) return;
     activeBranches.push(branch.name);
-    seen.add(normalizedName);
   });
 
   return { branches: activeBranches, inactiveBranches: masterInactiveBranches };
