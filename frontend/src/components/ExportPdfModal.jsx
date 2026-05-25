@@ -283,13 +283,8 @@ function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix
       if (data.section === 'body' && data.column.index === totalColIdx) {
         const val = Number(data.cell.raw);
         data.cell.styles.fontStyle = 'bold';
-        if (Number.isFinite(val) && val <= 5) {
-          data.cell.styles.textColor = CM.danger;
-        } else if (isLastRow) {
-          data.cell.styles.textColor = CM.white;
-        } else {
-          data.cell.styles.textColor = CM.mid;
-        }
+        data.cell.styles.fillColor = Number.isFinite(val) && val <= 5 ? CM.danger : CM.mid;
+        data.cell.styles.textColor = CM.white;
       } else if (data.section === 'body' && data.column.index > 0 && data.column.index < totalColIdx) {
         const val = Number(data.cell.raw);
         if (val > 0) {
