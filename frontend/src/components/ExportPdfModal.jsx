@@ -3,6 +3,7 @@ import { X, FileDown, Calendar, Loader2 } from 'lucide-react';
 import { statusMatches } from '../utils/statusUtils.js';
 import { parseDate } from '../utils/dateUtils.js';
 import { FLOW_STEPS, SPECIAL_STEPS } from './WorkflowTracker.jsx';
+import { BRANCH_MASTER_LIST } from '../data/branchMasterList.js';
 
 // All workflow columns in PDF order: pipeline steps then special outcomes
 const ALL_STEPS = [...FLOW_STEPS, ...SPECIAL_STEPS];
@@ -33,6 +34,31 @@ function buildMatrix(cases, branches) {
     if (step) counts[branch][step.id]++;
   });
   return counts;
+}
+
+function buildBranchCatalog(allCases) {
+  const known = new Set(BRANCH_MASTER_LIST.map(branch => branch.name));
+  const discovered = [...new Set(
+    allCases
+      .map(row => String(row.BRANCH_NAME || '').trim())
+      .filter(Boolean)
+  )];
+
+  const extras = discovered
+    .filter(name => !known.has(name))
+    .sort((a, b) => a.localeCompare(b));
+
+  return [
+    ...BRANCH_MASTER_LIST,
+    ...extras.map(name => ({ name, code: '', status: 'active' })),
+  ];
+}
+
+function formatBranchLabel(branch) {
+  const parts = [branch.name];
+  if (branch.code) parts.push(`[${branch.code}]`);
+  if (String(branch.status || '').toLowerCase() === 'inactive') parts.push('(Inactive)');
+  return parts.join(' ');
 }
 
 function fmtDate(iso) {
@@ -78,10 +104,11 @@ function getDateBounds(rows) {
   };
 }
 
-function generatePdf(jsPDF, autoTable, cases, branches, matrix, dateFrom, dateTo) {
+function generatePdf(jsPDF, autoTable, cases, branchCatalog, matrix, dateFrom, dateTo) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const W = 297;
   const H = 210;
+  const branches = branchCatalog.map(branch => branch.name);
 
   // ── Header bar ─────────────────────────────────────────────────────────────
   doc.setFillColor(...CM.dark);
@@ -162,9 +189,10 @@ function generatePdf(jsPDF, autoTable, cases, branches, matrix, dateFrom, dateTo
   const colHeaders = ALL_STEPS.map(s => s.label);
   const totalColIdx = ALL_STEPS.length + 1;
 
-  const bodyRows = branches.map(branch => {
+  const bodyRows = branchCatalog.map(branchMeta => {
+    const branch = branchMeta.name;
     const rowTotal = ALL_STEPS.reduce((sum, s) => sum + (matrix[branch]?.[s.id] ?? 0), 0);
-    return [branch, ...ALL_STEPS.map(s => matrix[branch]?.[s.id] || 0), rowTotal];
+    return [formatBranchLabel(branchMeta), ...ALL_STEPS.map(s => matrix[branch]?.[s.id] || 0), rowTotal];
   });
   const colTotals = ALL_STEPS.map(s => branches.reduce((sum, b) => sum + (matrix[b]?.[s.id] ?? 0), 0));
   const grandTotal = colTotals.reduce((a, b) => a + b, 0);
@@ -268,9 +296,11 @@ export default function ExportPdfModal({ cases, onClose }) {
     });
   }, [cases, dateFrom, dateTo]);
 
+  const branchCatalog = useMemo(() => buildBranchCatalog(cases), [cases]);
+
   const branches = useMemo(() => (
-    [...new Set(filtered.map(r => r.BRANCH_NAME).filter(Boolean))].sort()
-  ), [filtered]);
+    branchCatalog.map(branch => branch.name)
+  ), [branchCatalog]);
 
   const matrix = useMemo(() => buildMatrix(filtered, branches), [filtered, branches]);
 
@@ -286,7 +316,7 @@ export default function ExportPdfModal({ cases, onClose }) {
       import('jspdf-autotable').then(m => m.default),
     ]).then(([jsPDF, autoTable]) => {
       try {
-        generatePdf(jsPDF, autoTable, filtered, branches, matrix, dateFrom, dateTo);
+        generatePdf(jsPDF, autoTable, filtered, branchCatalog, matrix, dateFrom, dateTo);
       } finally {
         setGenerating(false);
       }
@@ -383,11 +413,12 @@ export default function ExportPdfModal({ cases, onClose }) {
                       </td>
                     </tr>
                   ) : (
-                    branches.map(branch => {
+                    branchCatalog.map(branchMeta => {
+                      const branch = branchMeta.name;
                       const rowTotal = ALL_STEPS.reduce((sum, s) => sum + (matrix[branch]?.[s.id] ?? 0), 0);
                       return (
                         <tr key={branch}>
-                          <td className="pdf-td-branch">{branch}</td>
+                          <td className="pdf-td-branch">{formatBranchLabel(branchMeta)}</td>
                           {ALL_STEPS.map(s => {
                             const v = matrix[branch]?.[s.id] ?? 0;
                             return (
