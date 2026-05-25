@@ -19,7 +19,6 @@ const CM = {
   white:   [255, 255, 255],
   gray:    [99,  112, 138],
   navy:    [11,   29,  74],
-  danger:  [200,   40,  40],
 };
 
 function buildMatrix(cases, branches) {
@@ -56,49 +55,28 @@ function getRowBranchCode(row) {
 }
 
 function buildOrderedBranches(filteredCases) {
-  const branchByName = new Map();
-  const branchByCode = new Map();
-
-  BRANCH_MASTER_LIST.forEach(branch => {
-    branchByName.set(normalizeName(branch.name), branch);
-    if (branch.code) branchByCode.set(normalizeCode(branch.code), branch);
-  });
-
   const dataBranches = [...new Set(
     filteredCases
       .map(row => String(row.BRANCH_NAME || '').trim())
       .filter(Boolean)
   )].sort((a, b) => a.localeCompare(b));
 
-  const activeBranches = [];
-  const inactiveBranches = [];
-  const seen = new Set();
+  const existingNameSet = new Set(dataBranches.map(normalizeName));
+  const existingCodeSet = new Set(
+    filteredCases
+      .map(getRowBranchCode)
+      .filter(Boolean)
+  );
 
-  dataBranches.forEach(branchName => {
-    const normalizedName = normalizeName(branchName);
-    const branchCode = getRowBranchCode(filteredCases.find(row => normalizeName(String(row.BRANCH_NAME || '').trim()) === normalizedName));
-    const masterBranch = branchByCode.get(branchCode) || branchByName.get(normalizedName);
+  const missingMasterBranches = BRANCH_MASTER_LIST
+    .filter(branch => {
+      const codeMatched = branch.code && existingCodeSet.has(normalizeCode(branch.code));
+      if (codeMatched) return false;
+      return !existingNameSet.has(normalizeName(branch.name));
+    })
+    .map(branch => branch.name);
 
-    if (masterBranch?.status === 'inactive') {
-      inactiveBranches.push(masterBranch.name);
-      return;
-    }
-
-    activeBranches.push(branchName);
-    seen.add(normalizedName);
-  });
-
-  BRANCH_MASTER_LIST.forEach(branch => {
-    if (branch.status === 'inactive') return;
-    const codeMatched = branch.code && filteredCases.some(row => getRowBranchCode(row) === normalizeCode(branch.code));
-    if (codeMatched) return;
-    const normalizedName = normalizeName(branch.name);
-    if (seen.has(normalizedName)) return;
-    activeBranches.push(branch.name);
-    seen.add(normalizedName);
-  });
-
-  return { branches: activeBranches, inactiveBranches: [...new Set(inactiveBranches)] };
+  return [...dataBranches, ...missingMasterBranches];
 }
 
 function fmtDate(iso) {
@@ -144,7 +122,7 @@ function getDateBounds(rows) {
   };
 }
 
-function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix, dateFrom, dateTo) {
+function generatePdf(jsPDF, autoTable, cases, branches, matrix, dateFrom, dateTo) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const W = 297;
   const H = 210;
@@ -280,12 +258,7 @@ function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix
         data.cell.styles.fontStyle = 'bold';
       }
 
-      if (data.section === 'body' && data.column.index === totalColIdx) {
-        const val = Number(data.cell.raw);
-        data.cell.styles.fontStyle = 'bold';
-        data.cell.styles.fillColor = Number.isFinite(val) && val <= 5 ? CM.danger : CM.mid;
-        data.cell.styles.textColor = CM.white;
-      } else if (data.section === 'body' && data.column.index > 0 && data.column.index < totalColIdx) {
+      if (data.section === 'body' && data.column.index > 0 && data.column.index < totalColIdx) {
         const val = Number(data.cell.raw);
         if (val > 0) {
           data.cell.styles.textColor = CM.mid;
@@ -312,19 +285,6 @@ function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix
     },
     margin: { left: 8, right: 8, bottom: 13 },
   });
-
-  if (inactiveBranches.length > 0) {
-    const pageCount = doc.internal.getNumberOfPages();
-    doc.setPage(pageCount);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(6.5);
-    doc.setTextColor(...CM.danger);
-    const note = `Inactive branches removed from table: ${inactiveBranches.join(', ')}`;
-    const noteLines = doc.splitTextToSize(note, W - 16);
-    const lineHeight = 3.1;
-    const startY = Math.max(H - 14 - (noteLines.length - 1) * lineHeight, 186);
-    doc.text(noteLines, 8, startY);
-  }
 
   const ds = `${(dateFrom || 'all').replace(/-/g, '')}to${(dateTo || 'all').replace(/-/g, '')}`;
   doc.save(`LOS_Branch_Workflow_${ds}.pdf`);
@@ -361,7 +321,7 @@ export default function ExportPdfModal({ cases, onClose }) {
     });
   }, [cases, dateFrom, dateTo]);
 
-  const { branches, inactiveBranches } = useMemo(() => (
+  const branches = useMemo(() => (
     buildOrderedBranches(filtered)
   ), [filtered]);
 
@@ -384,7 +344,7 @@ export default function ExportPdfModal({ cases, onClose }) {
       import('jspdf-autotable').then(m => m.default),
     ]).then(([jsPDF, autoTable]) => {
       try {
-        generatePdf(jsPDF, autoTable, filtered, branches, inactiveBranches, matrix, dateFrom, dateTo);
+        generatePdf(jsPDF, autoTable, filtered, branches, matrix, dateFrom, dateTo);
       } finally {
         setGenerating(false);
       }
