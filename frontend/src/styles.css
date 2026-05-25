@@ -1479,6 +1479,10 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
   color: var(--cm-dark);
   background: var(--cm-pale) !important;
 }
+.pdf-td-rowtotal-low {
+  background: #c82828 !important;
+  color: #ffffff !important;
+}
 .pdf-empty-cell {
   text-align: center;
   padding: 28px;
