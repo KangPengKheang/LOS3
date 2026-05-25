@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { X, FileDown, Calendar, Loader2 } from 'lucide-react';
 import { statusOrder, normalizeStatus } from '../utils/statusUtils.js';
+import { parseDate } from '../utils/dateUtils.js';
 
 // ── Short column labels for PDF header row ────────────────────────────────────
 const STATUS_SHORT = {
@@ -51,6 +52,38 @@ function fmtDate(iso) {
   if (!iso) return 'All';
   const [y, m, d] = iso.split('-');
   return `${d}/${m}/${y}`;
+}
+
+function toIsoDate(value) {
+  const d = parseDate(value);
+  if (!d) return '';
+  const local = new Date(d);
+  local.setHours(0, 0, 0, 0);
+  const y = local.getFullYear();
+  const m = String(local.getMonth() + 1).padStart(2, '0');
+  const day = String(local.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function getCaseDate(row) {
+  return parseDate(row.APPLICATION_DATE || row.ISSUE_DATE);
+}
+
+function getDateBounds(rows) {
+  let min = null;
+  let max = null;
+  rows.forEach(row => {
+    const d = getCaseDate(row);
+    if (!d) return;
+    const day = new Date(d);
+    day.setHours(0, 0, 0, 0);
+    if (!min || day < min) min = day;
+    if (!max || day > max) max = day;
+  });
+  return {
+    min: min ? toIsoDate(min) : '',
+    max: max ? toIsoDate(max) : '',
+  };
 }
 
 function generatePdf(jsPDF, autoTable, cases, branches, matrix, dateFrom, dateTo) {
@@ -217,12 +250,15 @@ function generatePdf(jsPDF, autoTable, cases, branches, matrix, dateFrom, dateTo
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function ExportPdfModal({ cases, onClose }) {
-  const today = new Date().toISOString().split('T')[0];
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
-
-  const [dateFrom, setDateFrom] = useState(thirtyDaysAgo);
-  const [dateTo, setDateTo] = useState(today);
+  const bounds = useMemo(() => getDateBounds(cases), [cases]);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [generating, setGenerating] = useState(false);
+
+  useEffect(() => {
+    setDateFrom(prev => prev || bounds.min || '');
+    setDateTo(prev => prev || bounds.max || '');
+  }, [bounds.min, bounds.max]);
 
   // Close on Escape
   useEffect(() => {
@@ -231,13 +267,20 @@ export default function ExportPdfModal({ cases, onClose }) {
     return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
-  const filtered = useMemo(() => cases.filter(row => {
-    const d = row.APPLICATION_DATE;
-    if (!d) return true;
-    if (dateFrom && d < dateFrom) return false;
-    if (dateTo && d > dateTo) return false;
-    return true;
-  }), [cases, dateFrom, dateTo]);
+  const filtered = useMemo(() => {
+    const from = parseDate(dateFrom);
+    const to = parseDate(dateTo);
+    if (from) from.setHours(0, 0, 0, 0);
+    if (to) to.setHours(23, 59, 59, 999);
+
+    return cases.filter(row => {
+      const d = getCaseDate(row);
+      if (!d) return true;
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      return true;
+    });
+  }, [cases, dateFrom, dateTo]);
 
   const branches = useMemo(() => (
     [...new Set(filtered.map(r => r.BRANCH_NAME).filter(Boolean))].sort()
@@ -294,7 +337,8 @@ export default function ExportPdfModal({ cases, onClose }) {
                 id="pdf-from"
                 type="date"
                 value={dateFrom}
-                max={dateTo || today}
+                min={bounds.min || undefined}
+                max={dateTo || bounds.max || undefined}
                 onChange={e => setDateFrom(e.target.value)}
               />
             </div>
@@ -305,8 +349,8 @@ export default function ExportPdfModal({ cases, onClose }) {
                 id="pdf-to"
                 type="date"
                 value={dateTo}
-                min={dateFrom}
-                max={today}
+                min={dateFrom || bounds.min || undefined}
+                max={bounds.max || undefined}
                 onChange={e => setDateTo(e.target.value)}
               />
             </div>
