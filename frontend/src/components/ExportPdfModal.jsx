@@ -66,7 +66,12 @@ function toIsoDate(value) {
 }
 
 function getCaseDate(row) {
-  return parseDate(row.APPLICATION_DATE || row.ISSUE_DATE);
+  return parseDate(
+    row.APPLICATION_DATE
+    || row.ISSUE_DATE
+    || row.REPORT_DATE
+    || row.CREATED_AT
+  );
 }
 
 function getDateBounds(rows) {
@@ -255,11 +260,6 @@ export default function ExportPdfModal({ cases, onClose }) {
   const [dateTo, setDateTo] = useState('');
   const [generating, setGenerating] = useState(false);
 
-  useEffect(() => {
-    setDateFrom(prev => prev || bounds.min || '');
-    setDateTo(prev => prev || bounds.max || '');
-  }, [bounds.min, bounds.max]);
-
   // Close on Escape
   useEffect(() => {
     const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -268,6 +268,8 @@ export default function ExportPdfModal({ cases, onClose }) {
   }, [onClose]);
 
   const filtered = useMemo(() => {
+    if (!dateFrom && !dateTo) return cases;
+
     const from = parseDate(dateFrom);
     const to = parseDate(dateTo);
     if (from) from.setHours(0, 0, 0, 0);
