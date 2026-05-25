@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { X, FileDown, Calendar, Loader2, AlertTriangle } from 'lucide-react';
+import { X, FileDown, Calendar, Loader2 } from 'lucide-react';
 import { statusMatches } from '../utils/statusUtils.js';
 import { parseDate } from '../utils/dateUtils.js';
 import { FLOW_STEPS, SPECIAL_STEPS } from './WorkflowTracker.jsx';
@@ -77,70 +77,6 @@ function buildOrderedBranches(filteredCases) {
     .map(branch => branch.name);
 
   return [...dataBranches, ...missingMasterBranches];
-}
-
-function auditMatrixIntegrity(cases, branches, matrix) {
-  const independent = {};
-  branches.forEach(branch => {
-    independent[branch] = {};
-    ALL_STEPS.forEach(step => { independent[branch][step.id] = 0; });
-  });
-
-  let missingBranchCount = 0;
-  let unmappedStatusCount = 0;
-
-  cases.forEach(row => {
-    const branch = String(row.BRANCH_NAME || '').trim();
-    if (!branch) {
-      missingBranchCount += 1;
-      return;
-    }
-
-    const step = ALL_STEPS.find(s => statusMatches(row.STATUS, s.statuses));
-    if (!step) {
-      unmappedStatusCount += 1;
-      return;
-    }
-
-    if (!independent[branch]) {
-      independent[branch] = {};
-      ALL_STEPS.forEach(s => { independent[branch][s.id] = 0; });
-    }
-
-    independent[branch][step.id] += 1;
-  });
-
-  const mismatches = [];
-  branches.forEach(branch => {
-    ALL_STEPS.forEach(step => {
-      const left = matrix[branch]?.[step.id] ?? 0;
-      const right = independent[branch]?.[step.id] ?? 0;
-      if (left !== right) {
-        mismatches.push(`${branch} | ${step.label}: expected ${right}, got ${left}`);
-      }
-    });
-  });
-
-  const colTotals = ALL_STEPS.map(step => branches.reduce((sum, branch) => sum + (matrix[branch]?.[step.id] ?? 0), 0));
-  const grandTotal = colTotals.reduce((sum, value) => sum + value, 0);
-  const independentGrandTotal = ALL_STEPS
-    .map(step => branches.reduce((sum, branch) => sum + (independent[branch]?.[step.id] ?? 0), 0))
-    .reduce((sum, value) => sum + value, 0);
-
-  if (grandTotal !== independentGrandTotal) {
-    mismatches.push(`Grand total mismatch: expected ${independentGrandTotal}, got ${grandTotal}`);
-  }
-
-  const warnings = [];
-  if (missingBranchCount > 0) warnings.push(`${missingBranchCount} row(s) have empty branch name.`);
-  if (unmappedStatusCount > 0) warnings.push(`${unmappedStatusCount} row(s) have status not mapped to PDF columns.`);
-
-  return {
-    mismatches,
-    warnings,
-    hasCriticalIssues: mismatches.length > 0,
-    grandTotal,
-  };
 }
 
 function fmtDate(iso) {
@@ -346,7 +282,7 @@ function generatePdf(jsPDF, autoTable, cases, branches, matrix, dateFrom, dateTo
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export default function ExportPdfModal({ cases, source, onClose }) {
+export default function ExportPdfModal({ cases, onClose }) {
   const bounds = useMemo(() => getDateBounds(cases), [cases]);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -381,11 +317,6 @@ export default function ExportPdfModal({ cases, source, onClose }) {
   ), [filtered]);
 
   const matrix = useMemo(() => buildMatrix(filtered, branches), [filtered, branches]);
-
-  const audit = useMemo(
-    () => auditMatrixIntegrity(filtered, branches, matrix),
-    [filtered, branches, matrix]
-  );
 
   const colTotals = useMemo(() => (
     ALL_STEPS.map(s => branches.reduce((sum, b) => sum + (matrix[b]?.[s.id] ?? 0), 0))
@@ -432,27 +363,6 @@ export default function ExportPdfModal({ cases, source, onClose }) {
             Generates a <strong>landscape A4 PDF</strong> with all branches as rows and each
             workflow stage as columns, showing case counts for the selected application date range.
           </p>
-          <div className={`pdf-audit-chip ${source === 'sheet' ? 'is-sheet' : 'is-sample'}`}>
-            Data source: {source === 'sheet' ? 'Google Sheet (live)' : 'Sample data (not live sheet)'}
-          </div>
-          {(audit.hasCriticalIssues || audit.warnings.length > 0) && (
-            <div className="pdf-audit-box" role="status" aria-live="polite">
-              <div className="pdf-audit-title">
-                <AlertTriangle size={14} /> Data Integrity Check
-              </div>
-              {audit.hasCriticalIssues && (
-                <p className="pdf-audit-critical">
-                  Export is blocked because table values are inconsistent.
-                </p>
-              )}
-              {audit.mismatches.slice(0, 4).map((line, idx) => (
-                <p key={`m-${idx}`} className="pdf-audit-item">{line}</p>
-              ))}
-              {audit.warnings.map((line, idx) => (
-                <p key={`w-${idx}`} className="pdf-audit-item">{line}</p>
-              ))}
-            </div>
-          )}
 
           {/* Date pickers */}
           <div className="pdf-date-row">
@@ -567,7 +477,7 @@ export default function ExportPdfModal({ cases, source, onClose }) {
             <button
               className="pdf-generate-btn"
               onClick={handleGenerate}
-              disabled={generating || branches.length === 0 || audit.hasCriticalIssues}
+              disabled={generating || branches.length === 0}
             >
               {generating
                 ? <><Loader2 size={15} className="pdf-spin-icon" /> Generating…</>
