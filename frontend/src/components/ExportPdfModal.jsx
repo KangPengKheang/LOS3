@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { X, FileDown, Calendar, Loader2 } from 'lucide-react';
+import { X, FileDown, Calendar, Loader2, AlertTriangle } from 'lucide-react';
 import { statusMatches } from '../utils/statusUtils.js';
 import { parseDate } from '../utils/dateUtils.js';
 import { FLOW_STEPS, SPECIAL_STEPS } from './WorkflowTracker.jsx';
@@ -36,29 +36,111 @@ function buildMatrix(cases, branches) {
   return counts;
 }
 
-function buildBranchCatalog(allCases) {
-  const known = new Set(BRANCH_MASTER_LIST.map(branch => branch.name));
-  const discovered = [...new Set(
-    allCases
-      .map(row => String(row.BRANCH_NAME || '').trim())
-      .filter(Boolean)
-  )];
-
-  const extras = discovered
-    .filter(name => !known.has(name))
-    .sort((a, b) => a.localeCompare(b));
-
-  return [
-    ...BRANCH_MASTER_LIST,
-    ...extras.map(name => ({ name, code: '', status: 'active' })),
-  ];
+function normalizeName(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-function formatBranchLabel(branch) {
-  const parts = [branch.name];
-  if (branch.code) parts.push(`[${branch.code}]`);
-  if (String(branch.status || '').toLowerCase() === 'inactive') parts.push('(Inactive)');
-  return parts.join(' ');
+function normalizeCode(value) {
+  return String(value || '').trim();
+}
+
+function getRowBranchCode(row) {
+  return normalizeCode(
+    row['BRANCH/OUTLET CODE']
+    || row.BRANCH_CODE
+    || row.BRANCHCODE
+    || row.BRANCH_CODE_ID
+    || row.BRANCH_ID
+  );
+}
+
+function buildOrderedBranches(filteredCases) {
+  const dataBranches = [...new Set(
+    filteredCases
+      .map(row => String(row.BRANCH_NAME || '').trim())
+      .filter(Boolean)
+  )].sort((a, b) => a.localeCompare(b));
+
+  const existingNameSet = new Set(dataBranches.map(normalizeName));
+  const existingCodeSet = new Set(
+    filteredCases
+      .map(getRowBranchCode)
+      .filter(Boolean)
+  );
+
+  const missingMasterBranches = BRANCH_MASTER_LIST
+    .filter(branch => {
+      const codeMatched = branch.code && existingCodeSet.has(normalizeCode(branch.code));
+      if (codeMatched) return false;
+      return !existingNameSet.has(normalizeName(branch.name));
+    })
+    .map(branch => branch.name);
+
+  return [...dataBranches, ...missingMasterBranches];
+}
+
+function auditMatrixIntegrity(cases, branches, matrix) {
+  const independent = {};
+  branches.forEach(branch => {
+    independent[branch] = {};
+    ALL_STEPS.forEach(step => { independent[branch][step.id] = 0; });
+  });
+
+  let missingBranchCount = 0;
+  let unmappedStatusCount = 0;
+
+  cases.forEach(row => {
+    const branch = String(row.BRANCH_NAME || '').trim();
+    if (!branch) {
+      missingBranchCount += 1;
+      return;
+    }
+
+    const step = ALL_STEPS.find(s => statusMatches(row.STATUS, s.statuses));
+    if (!step) {
+      unmappedStatusCount += 1;
+      return;
+    }
+
+    if (!independent[branch]) {
+      independent[branch] = {};
+      ALL_STEPS.forEach(s => { independent[branch][s.id] = 0; });
+    }
+
+    independent[branch][step.id] += 1;
+  });
+
+  const mismatches = [];
+  branches.forEach(branch => {
+    ALL_STEPS.forEach(step => {
+      const left = matrix[branch]?.[step.id] ?? 0;
+      const right = independent[branch]?.[step.id] ?? 0;
+      if (left !== right) {
+        mismatches.push(`${branch} | ${step.label}: expected ${right}, got ${left}`);
+      }
+    });
+  });
+
+  const colTotals = ALL_STEPS.map(step => branches.reduce((sum, branch) => sum + (matrix[branch]?.[step.id] ?? 0), 0));
+  const grandTotal = colTotals.reduce((sum, value) => sum + value, 0);
+  const independentGrandTotal = ALL_STEPS
+    .map(step => branches.reduce((sum, branch) => sum + (independent[branch]?.[step.id] ?? 0), 0))
+    .reduce((sum, value) => sum + value, 0);
+
+  if (grandTotal !== independentGrandTotal) {
+    mismatches.push(`Grand total mismatch: expected ${independentGrandTotal}, got ${grandTotal}`);
+  }
+
+  const warnings = [];
+  if (missingBranchCount > 0) warnings.push(`${missingBranchCount} row(s) have empty branch name.`);
+  if (unmappedStatusCount > 0) warnings.push(`${unmappedStatusCount} row(s) have status not mapped to PDF columns.`);
+
+  return {
+    mismatches,
+    warnings,
+    hasCriticalIssues: mismatches.length > 0,
+    grandTotal,
+  };
 }
 
 function fmtDate(iso) {
@@ -104,11 +186,10 @@ function getDateBounds(rows) {
   };
 }
 
-function generatePdf(jsPDF, autoTable, cases, branchCatalog, matrix, dateFrom, dateTo) {
+function generatePdf(jsPDF, autoTable, cases, branches, matrix, dateFrom, dateTo) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const W = 297;
   const H = 210;
-  const branches = branchCatalog.map(branch => branch.name);
 
   // ── Header bar ─────────────────────────────────────────────────────────────
   doc.setFillColor(...CM.dark);
@@ -189,10 +270,9 @@ function generatePdf(jsPDF, autoTable, cases, branchCatalog, matrix, dateFrom, d
   const colHeaders = ALL_STEPS.map(s => s.label);
   const totalColIdx = ALL_STEPS.length + 1;
 
-  const bodyRows = branchCatalog.map(branchMeta => {
-    const branch = branchMeta.name;
+  const bodyRows = branches.map(branch => {
     const rowTotal = ALL_STEPS.reduce((sum, s) => sum + (matrix[branch]?.[s.id] ?? 0), 0);
-    return [formatBranchLabel(branchMeta), ...ALL_STEPS.map(s => matrix[branch]?.[s.id] || 0), rowTotal];
+    return [branch, ...ALL_STEPS.map(s => matrix[branch]?.[s.id] || 0), rowTotal];
   });
   const colTotals = ALL_STEPS.map(s => branches.reduce((sum, b) => sum + (matrix[b]?.[s.id] ?? 0), 0));
   const grandTotal = colTotals.reduce((a, b) => a + b, 0);
@@ -266,7 +346,7 @@ function generatePdf(jsPDF, autoTable, cases, branchCatalog, matrix, dateFrom, d
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export default function ExportPdfModal({ cases, onClose }) {
+export default function ExportPdfModal({ cases, source, onClose }) {
   const bounds = useMemo(() => getDateBounds(cases), [cases]);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -296,17 +376,25 @@ export default function ExportPdfModal({ cases, onClose }) {
     });
   }, [cases, dateFrom, dateTo]);
 
-  const branchCatalog = useMemo(() => buildBranchCatalog(cases), [cases]);
-
   const branches = useMemo(() => (
-    branchCatalog.map(branch => branch.name)
-  ), [branchCatalog]);
+    buildOrderedBranches(filtered)
+  ), [filtered]);
 
   const matrix = useMemo(() => buildMatrix(filtered, branches), [filtered, branches]);
+
+  const audit = useMemo(
+    () => auditMatrixIntegrity(filtered, branches, matrix),
+    [filtered, branches, matrix]
+  );
 
   const colTotals = useMemo(() => (
     ALL_STEPS.map(s => branches.reduce((sum, b) => sum + (matrix[b]?.[s.id] ?? 0), 0))
   ), [branches, matrix]);
+
+  const grandTotal = useMemo(
+    () => colTotals.reduce((sum, value) => sum + value, 0),
+    [colTotals]
+  );
 
   function handleGenerate() {
     setGenerating(true);
@@ -316,7 +404,7 @@ export default function ExportPdfModal({ cases, onClose }) {
       import('jspdf-autotable').then(m => m.default),
     ]).then(([jsPDF, autoTable]) => {
       try {
-        generatePdf(jsPDF, autoTable, filtered, branchCatalog, matrix, dateFrom, dateTo);
+        generatePdf(jsPDF, autoTable, filtered, branches, matrix, dateFrom, dateTo);
       } finally {
         setGenerating(false);
       }
@@ -344,6 +432,27 @@ export default function ExportPdfModal({ cases, onClose }) {
             Generates a <strong>landscape A4 PDF</strong> with all branches as rows and each
             workflow stage as columns, showing case counts for the selected application date range.
           </p>
+          <div className={`pdf-audit-chip ${source === 'sheet' ? 'is-sheet' : 'is-sample'}`}>
+            Data source: {source === 'sheet' ? 'Google Sheet (live)' : 'Sample data (not live sheet)'}
+          </div>
+          {(audit.hasCriticalIssues || audit.warnings.length > 0) && (
+            <div className="pdf-audit-box" role="status" aria-live="polite">
+              <div className="pdf-audit-title">
+                <AlertTriangle size={14} /> Data Integrity Check
+              </div>
+              {audit.hasCriticalIssues && (
+                <p className="pdf-audit-critical">
+                  Export is blocked because table values are inconsistent.
+                </p>
+              )}
+              {audit.mismatches.slice(0, 4).map((line, idx) => (
+                <p key={`m-${idx}`} className="pdf-audit-item">{line}</p>
+              ))}
+              {audit.warnings.map((line, idx) => (
+                <p key={`w-${idx}`} className="pdf-audit-item">{line}</p>
+              ))}
+            </div>
+          )}
 
           {/* Date pickers */}
           <div className="pdf-date-row">
@@ -413,12 +522,11 @@ export default function ExportPdfModal({ cases, onClose }) {
                       </td>
                     </tr>
                   ) : (
-                    branchCatalog.map(branchMeta => {
-                      const branch = branchMeta.name;
+                    branches.map(branch => {
                       const rowTotal = ALL_STEPS.reduce((sum, s) => sum + (matrix[branch]?.[s.id] ?? 0), 0);
                       return (
                         <tr key={branch}>
-                          <td className="pdf-td-branch">{formatBranchLabel(branchMeta)}</td>
+                          <td className="pdf-td-branch">{branch}</td>
                           {ALL_STEPS.map(s => {
                             const v = matrix[branch]?.[s.id] ?? 0;
                             return (
@@ -442,7 +550,7 @@ export default function ExportPdfModal({ cases, onClose }) {
                           {v > 0 ? v : '—'}
                         </td>
                       ))}
-                      <td className="pdf-td-rowtotal pdf-tf-cell">{filtered.length}</td>
+                      <td className="pdf-td-rowtotal pdf-tf-cell">{grandTotal}</td>
                     </tr>
                   </tfoot>
                 )}
@@ -459,7 +567,7 @@ export default function ExportPdfModal({ cases, onClose }) {
             <button
               className="pdf-generate-btn"
               onClick={handleGenerate}
-              disabled={generating || branches.length === 0}
+              disabled={generating || branches.length === 0 || audit.hasCriticalIssues}
             >
               {generating
                 ? <><Loader2 size={15} className="pdf-spin-icon" /> Generating…</>

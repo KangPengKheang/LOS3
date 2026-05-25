@@ -332,6 +332,7 @@ export default function App() {
       {showPdfModal && (
         <ExportPdfModal
           cases={filtered}
+          source={source}
           onClose={() => setShowPdfModal(false)}
         />
       )}
