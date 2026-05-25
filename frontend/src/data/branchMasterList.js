@@ -37,7 +37,7 @@ export const BRANCH_MASTER_LIST = [
   { name: 'Memot', code: '913', status: 'active' },
   { name: 'Kampong Trabaek', code: '954', status: 'active' },
   { name: 'CMCB', code: '000', status: 'inactive' },
-  { name: 'Kien Svay', code: '914', status: 'active' },
+  { name: 'Kien Svay', code: '914', status: 'inactive' },
   { name: 'Chbar Mon', code: '905', status: 'inactive' },
   { name: 'Chhuk', code: '909', status: 'inactive' },
   { name: 'Peam Ro', code: '800', status: 'active' },
