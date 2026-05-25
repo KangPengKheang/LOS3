@@ -28,7 +28,7 @@ function buildMatrix(cases, branches) {
     ALL_STEPS.forEach(step => { counts[b][step.id] = 0; });
   });
   cases.forEach(row => {
-    const branch = row.BRANCH_NAME;
+    const branch = String(row.BRANCH_NAME || '').trim();
     if (!branch || !counts[branch]) return;
     const step = ALL_STEPS.find(s => statusMatches(row.STATUS, s.statuses));
     if (step) counts[branch][step.id]++;
