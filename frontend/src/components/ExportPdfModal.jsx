@@ -1,23 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { X, FileDown, Calendar, Loader2 } from 'lucide-react';
-import { statusOrder, normalizeStatus } from '../utils/statusUtils.js';
+import { statusMatches } from '../utils/statusUtils.js';
 import { parseDate } from '../utils/dateUtils.js';
+import { FLOW_STEPS, SPECIAL_STEPS } from './WorkflowTracker.jsx';
 
-// ── Short column labels for PDF header row ────────────────────────────────────
-const STATUS_SHORT = {
-  'RM Submission':            'RM Sub.',
-  'BM Review':                'BM Rev.',
-  'Credit Assessment':        'Credit Assess.',
-  'Credit Operation':         'Credit Op.',
-  'Approval Committee':       'Approval Com.',
-  'Legal & Documentation':    'Legal & Doc.',
-  'Disbursement Preparation': 'Disb. Prep.',
-  'Approved':                 'Approved',
-  'Drawdown':                 'Drawdown',
-  'Returned to RM':           'Ret. to RM',
-  'Rejected':                 'Rejected',
-  'Cancelled':                'Cancelled',
-};
+// All workflow columns in PDF order: pipeline steps then special outcomes
+const ALL_STEPS = [...FLOW_STEPS, ...SPECIAL_STEPS];
 
 // ── Chipmong Bank green palette (RGB arrays for jsPDF) ───────────────────────
 const CM = {
@@ -36,14 +24,13 @@ function buildMatrix(cases, branches) {
   const counts = {};
   branches.forEach(b => {
     counts[b] = {};
-    statusOrder.forEach(s => { counts[b][s] = 0; });
+    ALL_STEPS.forEach(step => { counts[b][step.id] = 0; });
   });
   cases.forEach(row => {
     const branch = row.BRANCH_NAME;
-    const matched = statusOrder.find(s => normalizeStatus(s) === normalizeStatus(row.STATUS));
-    if (branch && counts[branch] && matched) {
-      counts[branch][matched]++;
-    }
+    if (!branch || !counts[branch]) return;
+    const step = ALL_STEPS.find(s => statusMatches(row.STATUS, s.statuses));
+    if (step) counts[branch][step.id]++;
   });
   return counts;
 }
@@ -136,23 +123,20 @@ function generatePdf(jsPDF, autoTable, cases, branches, matrix, dateFrom, dateTo
   doc.rect(0, 30, W, 2.5, 'F');
 
   // ── KPI summary bar ────────────────────────────────────────────────────────
-  const activeStatuses = [
-    'RM Submission', 'BM Review', 'Credit Assessment', 'Credit Operation',
-    'Approval Committee', 'Legal & Documentation', 'Disbursement Preparation',
-  ];
-  const activeCount   = cases.filter(c => activeStatuses.some(s => normalizeStatus(s) === normalizeStatus(c.STATUS))).length;
-  const approvedCount = cases.filter(c => normalizeStatus(c.STATUS) === normalizeStatus('Approved')).length;
-  const drawdownCount = cases.filter(c => normalizeStatus(c.STATUS) === normalizeStatus('Drawdown')).length;
-  const retCount      = cases.filter(c => normalizeStatus(c.STATUS) === normalizeStatus('Returned to RM')).length;
-  const rejectedCount = cases.filter(c => normalizeStatus(c.STATUS) === normalizeStatus('Rejected')).length;
+  const countForStep = id => cases.filter(c => statusMatches(c.STATUS, ALL_STEPS.find(s => s.id === id)?.statuses ?? [])).length;
+  const activeCount   = FLOW_STEPS.slice(0, -1).reduce((n, s) => n + countForStep(s.id), 0); // pipeline excl. Approved
+  const approvedCount = countForStep('approved');
+  const retCount      = countForStep('returned');
+  const rejectedCount = countForStep('rejected');
+  const cancelledCount = countForStep('cancelled');
 
   const kpis = [
-    { label: 'Total Cases',    value: cases.length,   color: CM.mid },
-    { label: 'In Pipeline',    value: activeCount,    color: CM.green },
-    { label: 'Approved',       value: approvedCount,  color: [0, 130, 60] },
-    { label: 'Drawdown',       value: drawdownCount,  color: [0, 110, 50] },
-    { label: 'Returned to RM', value: retCount,       color: [150, 100, 10] },
-    { label: 'Rejected',       value: rejectedCount,  color: [180, 50, 50] },
+    { label: 'Total Cases',    value: cases.length,    color: CM.mid },
+    { label: 'In Pipeline',    value: activeCount,     color: CM.green },
+    { label: 'Approved',       value: approvedCount,   color: [0, 130, 60] },
+    { label: 'Returned to RM', value: retCount,        color: [150, 100, 10] },
+    { label: 'Rejected',       value: rejectedCount,   color: [180, 50, 50] },
+    { label: 'Cancelled',      value: cancelledCount,  color: [100, 100, 110] },
   ];
 
   const kpiW = W / kpis.length;
@@ -175,14 +159,14 @@ function generatePdf(jsPDF, autoTable, cases, branches, matrix, dateFrom, dateTo
   doc.rect(0, 48.5, W, 0.6, 'F');
 
   // ── Main table ─────────────────────────────────────────────────────────────
-  const colHeaders = statusOrder.map(s => STATUS_SHORT[s] ?? s);
-  const totalColIdx = statusOrder.length + 1;
+  const colHeaders = ALL_STEPS.map(s => s.label);
+  const totalColIdx = ALL_STEPS.length + 1;
 
   const bodyRows = branches.map(branch => {
-    const rowTotal = statusOrder.reduce((sum, s) => sum + (matrix[branch]?.[s] ?? 0), 0);
-    return [branch, ...statusOrder.map(s => matrix[branch]?.[s] || 0), rowTotal];
+    const rowTotal = ALL_STEPS.reduce((sum, s) => sum + (matrix[branch]?.[s.id] ?? 0), 0);
+    return [branch, ...ALL_STEPS.map(s => matrix[branch]?.[s.id] || 0), rowTotal];
   });
-  const colTotals = statusOrder.map(s => branches.reduce((sum, b) => sum + (matrix[b]?.[s] ?? 0), 0));
+  const colTotals = ALL_STEPS.map(s => branches.reduce((sum, b) => sum + (matrix[b]?.[s.id] ?? 0), 0));
   const grandTotal = colTotals.reduce((a, b) => a + b, 0);
   bodyRows.push(['TOTAL', ...colTotals, grandTotal]);
 
@@ -291,7 +275,7 @@ export default function ExportPdfModal({ cases, onClose }) {
   const matrix = useMemo(() => buildMatrix(filtered, branches), [filtered, branches]);
 
   const colTotals = useMemo(() => (
-    statusOrder.map(s => branches.reduce((sum, b) => sum + (matrix[b]?.[s] ?? 0), 0))
+    ALL_STEPS.map(s => branches.reduce((sum, b) => sum + (matrix[b]?.[s.id] ?? 0), 0))
   ), [branches, matrix]);
 
   function handleGenerate() {
@@ -369,7 +353,7 @@ export default function ExportPdfModal({ cases, onClose }) {
               <span className="pdf-kpi-lbl">Branches</span>
             </div>
             <div className="pdf-kpi-item">
-              <span className="pdf-kpi-val">{statusOrder.length}</span>
+              <span className="pdf-kpi-val">{ALL_STEPS.length}</span>
               <span className="pdf-kpi-lbl">Workflow Stages</span>
             </div>
           </div>
@@ -385,8 +369,8 @@ export default function ExportPdfModal({ cases, onClose }) {
                 <thead>
                   <tr>
                     <th className="pdf-th-branch">Branch</th>
-                    {statusOrder.map(s => (
-                      <th key={s} title={s}>{STATUS_SHORT[s] ?? s}</th>
+                    {ALL_STEPS.map(s => (
+                      <th key={s.id} title={s.fullName}>{s.label}</th>
                     ))}
                     <th className="pdf-th-total">Total</th>
                   </tr>
@@ -394,20 +378,20 @@ export default function ExportPdfModal({ cases, onClose }) {
                 <tbody>
                   {branches.length === 0 ? (
                     <tr>
-                      <td colSpan={statusOrder.length + 2} className="pdf-empty-cell">
+                      <td colSpan={ALL_STEPS.length + 2} className="pdf-empty-cell">
                         No data in selected date range
                       </td>
                     </tr>
                   ) : (
                     branches.map(branch => {
-                      const rowTotal = statusOrder.reduce((sum, s) => sum + (matrix[branch]?.[s] ?? 0), 0);
+                      const rowTotal = ALL_STEPS.reduce((sum, s) => sum + (matrix[branch]?.[s.id] ?? 0), 0);
                       return (
                         <tr key={branch}>
                           <td className="pdf-td-branch">{branch}</td>
-                          {statusOrder.map(s => {
-                            const v = matrix[branch]?.[s] ?? 0;
+                          {ALL_STEPS.map(s => {
+                            const v = matrix[branch]?.[s.id] ?? 0;
                             return (
-                              <td key={s} className={v > 0 ? 'pdf-td-pos' : 'pdf-td-zero'}>
+                              <td key={s.id} className={v > 0 ? 'pdf-td-pos' : 'pdf-td-zero'}>
                                 {v > 0 ? v : '—'}
                               </td>
                             );

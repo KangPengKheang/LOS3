@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { getLosDays } from '../utils/dateUtils.js';
 import { statusMatches } from '../utils/statusUtils.js';
 
-const FLOW_STEPS = [
+export const FLOW_STEPS = [
   {
     id: 'draft',
     label: 'Draft',
@@ -96,7 +96,7 @@ const FLOW_STEPS = [
   },
 ];
 
-const SPECIAL_STEPS = [
+export const SPECIAL_STEPS = [
   {
     id: 'returned',
     label: 'Returned',
