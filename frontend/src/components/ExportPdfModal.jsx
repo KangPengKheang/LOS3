@@ -8,6 +8,14 @@ import chipMongBankLogo from '../assets/chip-mong-bank-logo.png.jpg';
 
 // All workflow columns in PDF order: pipeline steps then special outcomes
 const ALL_STEPS = [...FLOW_STEPS, ...SPECIAL_STEPS];
+const UNKNOWN_BRANCH_LABEL = '(Unknown Branch)';
+const UNMAPPED_STEP = {
+  id: '__unmapped__',
+  label: 'Unmapped',
+  fullName: 'Unmapped Status',
+  statuses: [],
+};
+const REPORT_STEPS = [...ALL_STEPS, UNMAPPED_STEP];
 
 // ── Chipmong Bank green palette (RGB arrays for jsPDF) ───────────────────────
 const CM = {
@@ -28,13 +36,14 @@ function buildMatrix(cases, branches) {
   const counts = {};
   branches.forEach(b => {
     counts[b] = {};
-    ALL_STEPS.forEach(step => { counts[b][step.id] = 0; });
+    REPORT_STEPS.forEach(step => { counts[b][step.id] = 0; });
   });
   cases.forEach(row => {
-    const branch = String(row.BRANCH_NAME || '').trim();
-    if (!branch || !branchSet.has(branch)) return;
+    const branch = normalizeBranchName(row.BRANCH_NAME);
+    if (!branchSet.has(branch)) return;
     const step = ALL_STEPS.find(s => statusMatches(row.STATUS, s.statuses));
-    if (step) counts[branch][step.id]++;
+    const targetStepId = step?.id || UNMAPPED_STEP.id;
+    counts[branch][targetStepId]++;
   });
   return counts;
 }
@@ -44,11 +53,16 @@ function buildBranchCaseTotals(cases, branches) {
   const totals = {};
   branches.forEach(branch => { totals[branch] = 0; });
   cases.forEach(row => {
-    const branch = String(row.BRANCH_NAME || '').trim();
-    if (!branch || !branchSet.has(branch)) return;
+    const branch = normalizeBranchName(row.BRANCH_NAME);
+    if (!branchSet.has(branch)) return;
     totals[branch] += 1;
   });
   return totals;
+}
+
+function normalizeBranchName(value) {
+  const branch = String(value ?? '').trim();
+  return branch || UNKNOWN_BRANCH_LABEL;
 }
 
 function normalizeName(value) {
@@ -85,8 +99,7 @@ function buildOrderedBranches(filteredCases) {
   // Raw branch names exactly as they appear in data — same as dashboard table
   const rawBranches = [...new Set(
     filteredCases
-      .map(row => String(row.BRANCH_NAME || '').trim())
-      .filter(Boolean)
+      .map(row => normalizeBranchName(row.BRANCH_NAME))
   )].sort((a, b) => a.localeCompare(b));
 
   // Filter out inactive branches by name or code
@@ -189,10 +202,14 @@ function loadImageDataUrl(src) {
   });
 }
 
-function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix, branchCaseTotals, grandTotal, dateFrom, dateTo, logoMeta) {
+function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix, branchCaseTotals, dateFrom, dateTo, logoMeta) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const W = 297;
   const H = 210;
+  const matrixGrandTotal = branches.reduce(
+    (sum, branch) => sum + REPORT_STEPS.reduce((rowTotal, step) => rowTotal + (matrix[branch]?.[step.id] ?? 0), 0),
+    0,
+  );
 
   // ── Header bar ─────────────────────────────────────────────────────────────
   doc.setFillColor(...CM.dark);
@@ -249,27 +266,29 @@ function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix
   doc.setTextColor(...CM.pale);
   const genDate = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
   doc.text(`Generated: ${genDate}`, W - 8, 14, { align: 'right' });
-  doc.text(`Total Cases: ${cases.length}  |  Branches: ${branches.length}`, W - 8, 22, { align: 'right' });
+  doc.text(`Total Cases: ${matrixGrandTotal}  |  Branches: ${branches.length}`, W - 8, 22, { align: 'right' });
 
   // Accent line under header
   doc.setFillColor(...CM.light);
   doc.rect(0, 30, W, 2.5, 'F');
 
   // ── KPI summary bar ────────────────────────────────────────────────────────
-  const countForStep = id => cases.filter(c => statusMatches(c.STATUS, ALL_STEPS.find(s => s.id === id)?.statuses ?? [])).length;
+  const countForStep = id => branches.reduce((sum, b) => sum + (matrix[b]?.[id] ?? 0), 0);
   const activeCount   = FLOW_STEPS.slice(0, -1).reduce((n, s) => n + countForStep(s.id), 0); // pipeline excl. Approved
   const approvedCount = countForStep('approved');
   const retCount      = countForStep('returned');
   const rejectedCount = countForStep('rejected');
   const cancelledCount = countForStep('cancelled');
+  const unmappedCount = countForStep(UNMAPPED_STEP.id);
 
   const kpis = [
-    { label: 'Total Cases',    value: cases.length,    color: CM.mid },
+    { label: 'Total Cases',    value: matrixGrandTotal, color: CM.mid },
     { label: 'In Pipeline',    value: activeCount,     color: CM.green },
     { label: 'Approved',       value: approvedCount,   color: [0, 130, 60] },
     { label: 'Returned to RM', value: retCount,        color: [150, 100, 10] },
     { label: 'Rejected',       value: rejectedCount,   color: [180, 50, 50] },
     { label: 'Cancelled',      value: cancelledCount,  color: [100, 100, 110] },
+    { label: 'Unmapped',       value: unmappedCount,   color: [64, 86, 119] },
   ];
 
   const kpiW = W / kpis.length;
@@ -292,15 +311,16 @@ function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix
   doc.rect(0, 48.5, W, 0.6, 'F');
 
   // ── Main table ─────────────────────────────────────────────────────────────
-  const colHeaders = ALL_STEPS.map(s => s.label);
-  const totalColIdx = ALL_STEPS.length + 1;
+  const colHeaders = REPORT_STEPS.map(s => s.label);
+  const totalColIdx = REPORT_STEPS.length + 1;
 
   const bodyRows = branches.map(branch => {
-    const rowTotal = branchCaseTotals[branch] ?? 0;
-    return [branch, ...ALL_STEPS.map(s => matrix[branch]?.[s.id] || 0), rowTotal];
+    const rowTotal = REPORT_STEPS.reduce((sum, s) => sum + (matrix[branch]?.[s.id] ?? 0), 0);
+    return [branch, ...REPORT_STEPS.map(s => matrix[branch]?.[s.id] || 0), rowTotal];
   });
-  const colTotals = ALL_STEPS.map(s => branches.reduce((sum, b) => sum + (matrix[b]?.[s.id] ?? 0), 0));
-  bodyRows.push(['TOTAL', ...colTotals, grandTotal]);
+  const colTotals = REPORT_STEPS.map(s => branches.reduce((sum, b) => sum + (matrix[b]?.[s.id] ?? 0), 0));
+  const tableGrandTotal = colTotals.reduce((a, b) => a + b, 0);
+  bodyRows.push(['TOTAL', ...colTotals, tableGrandTotal]);
 
   autoTable(doc, {
     startY: 51,
@@ -441,13 +461,10 @@ export default function ExportPdfModal({ cases, onClose }) {
   ), [branches, branchCaseTotals]);
 
   const colTotals = useMemo(() => (
-    ALL_STEPS.map(s => branches.reduce((sum, b) => sum + (matrix[b]?.[s.id] ?? 0), 0))
+    REPORT_STEPS.map(s => branches.reduce((sum, b) => sum + (matrix[b]?.[s.id] ?? 0), 0))
   ), [branches, matrix]);
 
-  const grandTotal = useMemo(
-    () => sortedBranches.reduce((sum, branch) => sum + (branchCaseTotals[branch] ?? 0), 0),
-    [sortedBranches, branchCaseTotals]
-  );
+  const matrixGrandTotal = useMemo(() => colTotals.reduce((sum, value) => sum + value, 0), [colTotals]);
 
   function handleGenerate() {
     setGenerating(true);
@@ -458,7 +475,7 @@ export default function ExportPdfModal({ cases, onClose }) {
       loadImageDataUrl(chipMongBankLogo),
     ]).then(([jsPDF, autoTable, logoMeta]) => {
       try {
-        generatePdf(jsPDF, autoTable, filtered, sortedBranches, inactiveBranches, matrix, branchCaseTotals, grandTotal, dateFrom, dateTo, logoMeta);
+        generatePdf(jsPDF, autoTable, filtered, sortedBranches, inactiveBranches, matrix, branchCaseTotals, dateFrom, dateTo, logoMeta);
       } finally {
         setGenerating(false);
       }
@@ -528,6 +545,10 @@ export default function ExportPdfModal({ cases, onClose }) {
               <span className="pdf-kpi-val">{ALL_STEPS.length}</span>
               <span className="pdf-kpi-lbl">Workflow Stages</span>
             </div>
+            <div className="pdf-kpi-item">
+              <span className="pdf-kpi-val">{branches.includes(UNKNOWN_BRANCH_LABEL) ? 'Yes' : 'No'}</span>
+              <span className="pdf-kpi-lbl">Unknown Branch Found</span>
+            </div>
           </div>
 
           {/* Preview table */}
@@ -541,7 +562,7 @@ export default function ExportPdfModal({ cases, onClose }) {
                 <thead>
                   <tr>
                     <th className="pdf-th-branch">Branch</th>
-                    {ALL_STEPS.map(s => (
+                    {REPORT_STEPS.map(s => (
                       <th key={s.id} title={s.fullName}>{s.label}</th>
                     ))}
                     <th className="pdf-th-total">Total</th>
@@ -550,7 +571,7 @@ export default function ExportPdfModal({ cases, onClose }) {
                 <tbody>
                   {branches.length === 0 ? (
                     <tr>
-                      <td colSpan={ALL_STEPS.length + 2} className="pdf-empty-cell">
+                      <td colSpan={REPORT_STEPS.length + 2} className="pdf-empty-cell">
                         No data in selected date range
                       </td>
                     </tr>
@@ -560,7 +581,7 @@ export default function ExportPdfModal({ cases, onClose }) {
                       return (
                         <tr key={branch}>
                           <td className="pdf-td-branch">{branch}</td>
-                          {ALL_STEPS.map(s => {
+                          {REPORT_STEPS.map(s => {
                             const v = matrix[branch]?.[s.id] ?? 0;
                             return (
                               <td key={s.id} className={v > 0 ? 'pdf-td-pos' : 'pdf-td-zero'}>
@@ -583,7 +604,7 @@ export default function ExportPdfModal({ cases, onClose }) {
                           {v > 0 ? v : '—'}
                         </td>
                       ))}
-                      <td className="pdf-td-rowtotal pdf-tf-cell">{grandTotal}</td>
+                      <td className="pdf-td-rowtotal pdf-tf-cell">{matrixGrandTotal}</td>
                     </tr>
                   </tfoot>
                 )}

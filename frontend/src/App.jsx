@@ -83,7 +83,7 @@ export default function App() {
       setLoading(true);
       setError('');
       const result = await fetchLosCases();
-      const allowed = (result.data || []).filter(row =>
+         const allowed = (result.data || []).filter(row =>
         !EXCLUDED_PRODUCTS.has(row.PRODUCTS) &&
         !EXCLUDED_LOAN_TYPES.has(row.LOAN_TYPE)
       );
