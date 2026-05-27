@@ -23,6 +23,10 @@ import ExportPdfModal from './components/ExportPdfModal.jsx';
 const EXCLUDED_PRODUCTS = new Set(['Credit Card', 'Credit Card Against TD']);
 const EXCLUDED_LOAN_TYPES = new Set(['Restructure', 'Other Request']);
 
+function hasExcludedPurpose(purpose) {
+  return /\bOD\b/.test(String(purpose || ''));
+}
+
 function unique(values) {
   return [...new Set(values.filter(Boolean))].sort();
 }
@@ -83,9 +87,10 @@ export default function App() {
       setLoading(true);
       setError('');
       const result = await fetchLosCases();
-         const allowed = (result.data || []).filter(row =>
+      const allowed = (result.data || []).filter(row =>
         !EXCLUDED_PRODUCTS.has(row.PRODUCTS) &&
-        !EXCLUDED_LOAN_TYPES.has(row.LOAN_TYPE)
+        !EXCLUDED_LOAN_TYPES.has(row.LOAN_TYPE) &&
+        !hasExcludedPurpose(row.PURPOSE)
       );
       setCases(allowed);
       setSource(result.source);
