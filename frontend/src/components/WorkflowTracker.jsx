@@ -146,7 +146,6 @@ export default function WorkflowTracker({ cases, branches = [], globalBranch = '
   const [activeStepId, setActiveStepId] = useState(null);
   const [showSpecial, setShowSpecial] = useState(false);
   const [wfBranch, setWfBranch] = useState('All');
-  const [wfRm, setWfRm] = useState('All');
 
   // Global filter is strongest — force section filter to match it when set
   useEffect(() => {
@@ -157,21 +156,9 @@ export default function WorkflowTracker({ cases, branches = [], globalBranch = '
     }
   }, [globalBranch, branches]);
 
-  const rmOptions = useMemo(() => {
-    const scopedCases = wfBranch === 'All' ? cases : cases.filter(r => r.BRANCH_NAME === wfBranch);
-    return [...new Set(scopedCases.map(getRmName).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-  }, [cases, wfBranch]);
-
-  useEffect(() => {
-    if (wfRm !== 'All' && !rmOptions.includes(wfRm)) {
-      setWfRm('All');
-    }
-  }, [wfRm, rmOptions]);
-
   const workflowCases = useMemo(() => {
-    const scopedCases = wfBranch === 'All' ? cases : cases.filter(r => r.BRANCH_NAME === wfBranch);
-    return wfRm === 'All' ? scopedCases : scopedCases.filter(row => getRmName(row) === wfRm);
-  }, [cases, wfBranch, wfRm]);
+    return wfBranch === 'All' ? cases : cases.filter(r => r.BRANCH_NAME === wfBranch);
+  }, [cases, wfBranch]);
 
   const stepData = useMemo(() => FLOW_STEPS.map(step => {
     const matchingCases = workflowCases.filter(row => {
@@ -194,8 +181,8 @@ export default function WorkflowTracker({ cases, branches = [], globalBranch = '
     const scopedExcluded = wfBranch === 'All'
       ? excludedPurposeCases
       : excludedPurposeCases.filter(row => row.BRANCH_NAME === wfBranch);
-    return wfRm === 'All' ? scopedExcluded : scopedExcluded.filter(row => getRmName(row) === wfRm);
-  }, [excludedPurposeCases, wfBranch, wfRm]);
+    return scopedExcluded;
+  }, [excludedPurposeCases, wfBranch]);
 
   const allSteps = useMemo(() => [...stepData, ...specialData], [stepData, specialData]);
   const activeStep = allSteps.find(step => step.id === activeStepId) || null;
@@ -227,15 +214,6 @@ export default function WorkflowTracker({ cases, branches = [], globalBranch = '
               >
                 <option value="All">Branch: All</option>
                 {branches.map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
-              <select
-                className="select-input wf-rm-select"
-                value={wfRm}
-                onChange={e => setWfRm(e.target.value)}
-                aria-label="Filter workflow by RM name"
-              >
-                <option value="All">RM: All</option>
-                {rmOptions.map(rm => <option key={rm} value={rm}>{rm}</option>)}
               </select>
             </div>
             <div className="workflow-legend">

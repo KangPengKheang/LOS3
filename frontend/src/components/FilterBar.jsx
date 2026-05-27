@@ -11,7 +11,7 @@ function Select({ value, onChange, options, label }) {
   );
 }
 
-export default function FilterBar({ filters, setFilters, branches, products, statuses, onExport }) {
+export default function FilterBar({ filters, setFilters, branches, rms, products, statuses, onExport }) {
   return (
     <div className="filter-row">
       <input
@@ -22,6 +22,7 @@ export default function FilterBar({ filters, setFilters, branches, products, sta
       />
       <Select label="Status" value={filters.status} onChange={(value) => setFilters((prev) => ({ ...prev, status: value }))} options={statuses} />
       <Select label="Branch" value={filters.branch} onChange={(value) => setFilters((prev) => ({ ...prev, branch: value }))} options={branches} />
+      <Select label="RM" value={filters.rm} onChange={(value) => setFilters((prev) => ({ ...prev, rm: value }))} options={rms} />
       <Select label="Product" value={filters.product} onChange={(value) => setFilters((prev) => ({ ...prev, product: value }))} options={products} />
       <select
         className="select-input"

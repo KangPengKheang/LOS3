@@ -27,6 +27,10 @@ function hasExcludedPurpose(purpose) {
   return /\bOD\b/.test(String(purpose || ''));
 }
 
+function getRmName(row) {
+  return String(row.RM_NAME || row.RM_Name || row.rm_name || '').trim();
+}
+
 function unique(values) {
   return [...new Set(values.filter(Boolean))].sort();
 }
@@ -79,6 +83,7 @@ export default function App() {
     search: '',
     status: 'All',
     branch: 'All',
+    rm: 'All',
     product: 'All',
     losSort: 'default',
   });
@@ -134,6 +139,7 @@ export default function App() {
       return (!search || searchable.includes(search))
         && (filters.status === 'All' || statusMatches(row.STATUS, [filters.status]))
         && (filters.branch === 'All' || row.BRANCH_NAME === filters.branch)
+        && (filters.rm === 'All' || getRmName(row) === filters.rm)
         && (filters.product === 'All' || row.PRODUCTS === filters.product);
     });
 
@@ -169,10 +175,11 @@ export default function App() {
     const pool = cases.filter(row =>
       baseFilter(row, search)
       && (filters.status === 'All' || statusMatches(row.STATUS, [filters.status]))
+      && (filters.rm === 'All' || getRmName(row) === filters.rm)
       && (filters.product === 'All' || row.PRODUCTS === filters.product)
     );
     return unique(pool.map(row => row.BRANCH_NAME));
-  }, [cases, filters.search, filters.status, filters.product]);
+  }, [cases, filters.search, filters.status, filters.rm, filters.product]);
 
   const products = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
@@ -180,15 +187,28 @@ export default function App() {
       baseFilter(row, search)
       && (filters.status === 'All' || statusMatches(row.STATUS, [filters.status]))
       && (filters.branch === 'All' || row.BRANCH_NAME === filters.branch)
+      && (filters.rm === 'All' || getRmName(row) === filters.rm)
     );
     return unique(pool.map(row => row.PRODUCTS));
-  }, [cases, filters.search, filters.status, filters.branch]);
+  }, [cases, filters.search, filters.status, filters.branch, filters.rm]);
+
+  const rms = useMemo(() => {
+    const search = filters.search.trim().toLowerCase();
+    const pool = cases.filter(row =>
+      baseFilter(row, search)
+      && (filters.status === 'All' || statusMatches(row.STATUS, [filters.status]))
+      && (filters.branch === 'All' || row.BRANCH_NAME === filters.branch)
+      && (filters.product === 'All' || row.PRODUCTS === filters.product)
+    );
+    return unique(pool.map(getRmName));
+  }, [cases, filters.search, filters.status, filters.branch, filters.product]);
 
   const statuses = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
     const pool = cases.filter(row =>
       baseFilter(row, search)
       && (filters.branch === 'All' || row.BRANCH_NAME === filters.branch)
+      && (filters.rm === 'All' || getRmName(row) === filters.rm)
       && (filters.product === 'All' || row.PRODUCTS === filters.product)
     );
     const statusByKey = new Map();
@@ -204,7 +224,7 @@ export default function App() {
       .map(([, status]) => status)
       .sort();
     return [...ordered, ...remaining];
-  }, [cases, filters.search, filters.branch, filters.product]);
+  }, [cases, filters.search, filters.branch, filters.rm, filters.product]);
 
   // Auto-reset a filter value when it's no longer in the valid options
   useEffect(() => {
@@ -224,6 +244,18 @@ export default function App() {
       setFilters(prev => ({ ...prev, product: 'All' }));
     }
   }, [products]);
+
+  useEffect(() => {
+    if (filters.rm !== 'All' && !rms.includes(filters.rm)) {
+      setFilters(prev => ({ ...prev, rm: 'All' }));
+    }
+  }, [rms]);
+
+  const filteredExcludedPurposeCases = useMemo(() => (
+    filters.rm === 'All'
+      ? excludedPurposeCases
+      : excludedPurposeCases.filter(row => getRmName(row) === filters.rm)
+  ), [excludedPurposeCases, filters.rm]);
 
   async function handleSaveRemark(row, remark) {
     const applicationId = row.APPLICATION_NUMBER_ID;
@@ -309,6 +341,7 @@ export default function App() {
             filters={filters}
             setFilters={setFilters}
             branches={branches}
+            rms={rms}
             products={products}
             statuses={statuses}
             onExport={() => exportCsv(filtered)}
@@ -318,7 +351,7 @@ export default function App() {
           cases={filtered}
           branches={branches}
           globalBranch={filters.branch}
-          excludedPurposeCases={excludedPurposeCases}
+          excludedPurposeCases={filteredExcludedPurposeCases}
         />
 
         <section className="panel">
