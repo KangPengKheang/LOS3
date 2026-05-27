@@ -19,6 +19,7 @@ import { getLosDays } from './utils/dateUtils.js';
 import { getRemarkText } from './utils/remarks.js';
 import { normalizeStatus, statusOrder, statusMatches } from './utils/statusUtils.js';
 import ExportPdfModal from './components/ExportPdfModal.jsx';
+import RmActivityDashboard from './components/RmActivityDashboard.jsx';
 
 const EXCLUDED_PRODUCTS = new Set(['Credit Card', 'Credit Card Against TD']);
 const EXCLUDED_LOAN_TYPES = new Set(['Restructure', 'Other Request']);
@@ -353,6 +354,8 @@ export default function App() {
           globalBranch={filters.branch}
           excludedPurposeCases={filteredExcludedPurposeCases}
         />
+
+        <RmActivityDashboard cases={cases} />
 
         <section className="panel">
           <div className="panel-head">
