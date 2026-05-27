@@ -824,6 +824,29 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
   padding: 22px 24px 20px;
   overflow: hidden;
 }
+
+.rm-dashboard-shell {
+  margin-bottom: 20px;
+}
+
+.rm-dashboard-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid #d8e4f7;
+  border-radius: 14px;
+  background: #f8fbff;
+  color: #16305b;
+  font-weight: 800;
+}
+
+.rm-dashboard-toggle:hover {
+  border-color: #b9cff5;
+  background: #f1f7ff;
+}
 .workflow-header {
   display: flex;
   align-items: flex-start;

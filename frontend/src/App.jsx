@@ -73,6 +73,7 @@ function exportCsv(rows) {
 export default function App() {
   const [cases, setCases] = useState([]);
   const [excludedPurposeCases, setExcludedPurposeCases] = useState([]);
+  const [showRmDashboard, setShowRmDashboard] = useState(false);
   const [source, setSource] = useState('sample');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -355,7 +356,18 @@ export default function App() {
           excludedPurposeCases={filteredExcludedPurposeCases}
         />
 
-        <RmActivityDashboard cases={cases} />
+        <section className="rm-dashboard-shell">
+          <button
+            type="button"
+            className="rm-dashboard-toggle"
+            onClick={() => setShowRmDashboard(prev => !prev)}
+            aria-expanded={showRmDashboard}
+          >
+            <span>RM Activity Dashboard</span>
+            <span>{showRmDashboard ? 'Hide' : 'Show'}</span>
+          </button>
+          {showRmDashboard ? <RmActivityDashboard cases={cases} /> : null}
+        </section>
 
         <section className="panel">
           <div className="panel-head">
