@@ -78,6 +78,46 @@ function daysSince(date) {
   return Math.max(0, Math.round((Date.now() - date.getTime()) / 86_400_000));
 }
 
+function getFlagSeverity(flagKey) {
+  if (flagKey === 'inactive') return 'High';
+  if (flagKey === 'stalled') return 'High';
+  if (flagKey === 'losLong') return 'Medium';
+  return 'Watch';
+}
+
+function getFlagAction(flagKey) {
+  if (flagKey === 'inactive') return 'Review RM pipeline generation plan and prospecting schedule.';
+  if (flagKey === 'stalled') return 'Escalate blocked cases and request immediate status updates.';
+  if (flagKey === 'losLong') return 'Prioritize aged files and clear pending approvals/documents.';
+  return 'Coach RM on portfolio depth and cross-sell opportunities.';
+}
+
+function getFlagInsight(profile, flag) {
+  if (flag.key === 'inactive') {
+    return `No new application for ${profile.sinceLastLos === Infinity ? 'N/A' : `${profile.sinceLastLos} days`}. Last application: ${formatDate(profile.lastLosDate) || 'Unknown'}.`;
+  }
+
+  if (flag.key === 'stalled') {
+    const worst = Math.max(...(flag.cases || []).map(c => daysSinceLastUpdate(c)), 0);
+    return `${flag.cases?.length || 0} case(s) have no meaningful update for at least ${STALLED_DAYS} days. Longest stall: ${worst} days.`;
+  }
+
+  if (flag.key === 'losLong') {
+    const worst = Math.max(...(flag.cases || []).map(c => getLosDays(c)), 0);
+    return `${flag.cases?.length || 0} case(s) exceeded LOS threshold of ${LOS_LONG_DAYS} days. Oldest LOS: ${worst} days.`;
+  }
+
+  return `Low current throughput: ${profile.active} active case(s), ${profile.total} total case(s).`;
+}
+
+function getCaseFlagReason(flagKey, row) {
+  const los = getLosDays(row);
+  const stalled = daysSinceLastUpdate(row);
+  if (flagKey === 'stalled') return `No update for ${stalled}d`;
+  if (flagKey === 'losLong') return `LOS ${los}d > ${LOS_LONG_DAYS}d`;
+  return 'Flagged by policy threshold';
+}
+
 /* ─── Flag types ──────────────────────────────────────────── */
 const FLAG = {
   INACTIVE:  { key: 'inactive',  label: 'No LOS ≥ 30 d',     color: '#c84b1e', bg: '#fff1ec', icon: UserX },
@@ -229,6 +269,22 @@ function RmRow({ profile, rank }) {
                     <strong>{flag.label}</strong>
                     <span className="rmad-detail-flag-detail">— {flag.detail}</span>
                   </div>
+
+                  <div className="rmad-insight-grid">
+                    <div className="rmad-insight-card">
+                      <span className="rmad-insight-k">Severity</span>
+                      <span className="rmad-insight-v">{getFlagSeverity(flag.key)}</span>
+                    </div>
+                    <div className="rmad-insight-card">
+                      <span className="rmad-insight-k">Insight</span>
+                      <span className="rmad-insight-v">{getFlagInsight(profile, flag)}</span>
+                    </div>
+                    <div className="rmad-insight-card">
+                      <span className="rmad-insight-k">Suggested Action</span>
+                      <span className="rmad-insight-v">{getFlagAction(flag.key)}</span>
+                    </div>
+                  </div>
+
                   {flag.cases && flag.cases.length > 0 && (
                     <table className="rmad-detail-tbl">
                       <thead>
@@ -240,6 +296,7 @@ function RmRow({ profile, rank }) {
                           <th>App Date</th>
                           <th>LOS</th>
                           <th>Days Stalled</th>
+                          <th>Why Flagged</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -261,11 +318,20 @@ function RmRow({ profile, rank }) {
                               <td className={stalled >= STALLED_DAYS ? 'rmad-num--warn rmad-detail-num' : 'rmad-detail-num'}>
                                 {stalled}d
                               </td>
+                              <td>
+                                <span className="rmad-reason-chip">{getCaseFlagReason(flag.key, c)}</span>
+                              </td>
                             </tr>
                           );
                         })}
                       </tbody>
                     </table>
+                  )}
+
+                  {(!flag.cases || flag.cases.length === 0) && (
+                    <div className="rmad-detail-empty-note">
+                      No individual case rows for this flag. This signal is based on RM-level activity and trend thresholds.
+                    </div>
                   )}
                 </div>
               ))}
@@ -822,6 +888,37 @@ export default function RmActivityDashboard({ cases, onBack }) {
 
         .rmad-detail-flag-block { display: flex; flex-direction: column; gap: 10px; }
 
+        .rmad-insight-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .rmad-insight-card {
+          border: 1px solid #dde6f7;
+          border-radius: 10px;
+          background: white;
+          padding: 8px 10px;
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+        }
+
+        .rmad-insight-k {
+          font-size: 10px;
+          color: #7a8eaf;
+          text-transform: uppercase;
+          font-weight: 800;
+          letter-spacing: 0.04em;
+        }
+
+        .rmad-insight-v {
+          font-size: 12px;
+          color: #18335e;
+          line-height: 1.4;
+          font-weight: 700;
+        }
+
         .rmad-detail-flag-title {
           display: flex;
           align-items: center;
@@ -883,6 +980,28 @@ export default function RmActivityDashboard({ cases, onBack }) {
           font-weight: 700;
         }
 
+        .rmad-reason-chip {
+          display: inline-block;
+          padding: 2px 8px;
+          border-radius: 99px;
+          border: 1px solid #f7c7b7;
+          background: #fff2ec;
+          color: #b5471f;
+          font-size: 11px;
+          font-weight: 800;
+          white-space: nowrap;
+        }
+
+        .rmad-detail-empty-note {
+          border: 1px dashed #d5e0f4;
+          border-radius: 10px;
+          padding: 8px 10px;
+          font-size: 12px;
+          color: #607596;
+          background: #f5f9ff;
+          font-weight: 600;
+        }
+
         /* ── Misc ── */
         .rmad-no-results {
           padding: 36px;
@@ -919,6 +1038,10 @@ export default function RmActivityDashboard({ cases, onBack }) {
           font-size: 12px;
           color: #637ba1;
           font-weight: 700;
+        }
+
+        @media (max-width: 860px) {
+          .rmad-insight-grid { grid-template-columns: 1fr; }
         }
 
         .rmad-empty {
