@@ -825,27 +825,36 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
   overflow: hidden;
 }
 
-.rm-dashboard-shell {
-  margin-bottom: 20px;
-}
-
-.rm-dashboard-toggle {
-  width: 100%;
-  display: flex;
+.view-switcher {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 6px;
   border: 1px solid #d8e4f7;
-  border-radius: 14px;
-  background: #f8fbff;
-  color: #16305b;
-  font-weight: 800;
+  background: #f7faff;
+  border-radius: 12px;
 }
 
-.rm-dashboard-toggle:hover {
-  border-color: #b9cff5;
-  background: #f1f7ff;
+.view-switch-btn {
+  border: 1px solid transparent;
+  background: transparent;
+  color: #385174;
+  font-weight: 800;
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 9px;
+}
+
+.view-switch-btn:hover {
+  background: #edf4ff;
+  color: #104ea9;
+}
+
+.view-switch-btn--active {
+  background: linear-gradient(135deg, #1463d8, #0f52ba);
+  color: #ffffff;
+  box-shadow: 0 8px 16px rgba(20, 99, 216, 0.28);
 }
 .workflow-header {
   display: flex;

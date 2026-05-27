@@ -73,7 +73,7 @@ function exportCsv(rows) {
 export default function App() {
   const [cases, setCases] = useState([]);
   const [excludedPurposeCases, setExcludedPurposeCases] = useState([]);
-  const [showRmDashboard, setShowRmDashboard] = useState(false);
+  const [activeView, setActiveView] = useState('case');
   const [source, setSource] = useState('sample');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -349,6 +349,27 @@ export default function App() {
             onExport={() => exportCsv(filtered)}
           />
 
+        <div className="view-switcher" role="tablist" aria-label="Dashboard view switcher">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeView === 'case'}
+            className={`view-switch-btn${activeView === 'case' ? ' view-switch-btn--active' : ''}`}
+            onClick={() => setActiveView('case')}
+          >
+            Case Tracking Table
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeView === 'rm'}
+            className={`view-switch-btn${activeView === 'rm' ? ' view-switch-btn--active' : ''}`}
+            onClick={() => setActiveView('rm')}
+          >
+            RM Activity Dashboard
+          </button>
+        </div>
+
         <WorkflowTracker
           cases={filtered}
           branches={branches}
@@ -356,34 +377,25 @@ export default function App() {
           excludedPurposeCases={filteredExcludedPurposeCases}
         />
 
-        <section className="rm-dashboard-shell">
-          <button
-            type="button"
-            className="rm-dashboard-toggle"
-            onClick={() => setShowRmDashboard(prev => !prev)}
-            aria-expanded={showRmDashboard}
-          >
-            <span>RM Activity Dashboard</span>
-            <span>{showRmDashboard ? 'Hide' : 'Show'}</span>
-          </button>
-          {showRmDashboard ? <RmActivityDashboard cases={cases} /> : null}
-        </section>
-
-        <section className="panel">
-          <div className="panel-head">
-            <div>
-              <h2>Case Tracking Table</h2>
+        {activeView === 'case' ? (
+          <section className="panel">
+            <div className="panel-head">
+              <div>
+                <h2>Case Tracking Table</h2>
+              </div>
+              <button className="refresh-btn" onClick={loadData} disabled={loading}><RefreshCw size={16} /> Refresh</button>
             </div>
-            <button className="refresh-btn" onClick={loadData} disabled={loading}><RefreshCw size={16} /> Refresh</button>
-          </div>
 
-          <TrendLineChart rows={filtered} branches={branches} />
+            <TrendLineChart rows={filtered} branches={branches} />
 
-          {loading
-            ? <div className="loader">Loading LOS cases...</div>
-            : <CaseTable rows={filtered} onSelectCase={setSelectedCase} selectedCase={selectedCase} />}
-          <div className="table-footer">Showing {filtered.length} of {cases.length} cases</div>
-        </section>
+            {loading
+              ? <div className="loader">Loading LOS cases...</div>
+              : <CaseTable rows={filtered} onSelectCase={setSelectedCase} selectedCase={selectedCase} />}
+            <div className="table-footer">Showing {filtered.length} of {cases.length} cases</div>
+          </section>
+        ) : (
+          <RmActivityDashboard cases={filtered} onBack={() => setActiveView('case')} />
+        )}
       </main>
 
       <RemarkModal

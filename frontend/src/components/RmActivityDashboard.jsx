@@ -8,7 +8,7 @@
  *   <RmActivityDashboard cases={cases} />   ← place after <WorkflowTracker … />
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Clock,
@@ -28,6 +28,7 @@ import { isTerminalStatus } from '../utils/statusUtils.js';
 const INACTIVE_DAYS   = 30;   // No new LOS for this many days → "inactive"
 const LOS_LONG_DAYS   = 45;   // Active case older than this → "LOS too long"
 const STALLED_DAYS    = 14;   // Case stuck in same step for this many days → "stalled"
+const PAGE_SIZE       = 10;
 
 /* ─── Helpers ─────────────────────────────────────────────── */
 function getRmName(row) {
@@ -317,11 +318,12 @@ function SummaryBar({ profiles, total }) {
 }
 
 /* ─── Main component ──────────────────────────────────────── */
-export default function RmActivityDashboard({ cases }) {
+export default function RmActivityDashboard({ cases, onBack }) {
   const [search, setSearch] = useState('');
   const [flagFilter, setFlagFilter] = useState('all');
   const [sortField, setSortField] = useState('flags');
   const [sortDir, setSortDir] = useState('desc');
+  const [page, setPage] = useState(1);
 
   const allProfiles = useMemo(() => buildRmProfiles(cases), [cases]);
 
@@ -348,6 +350,20 @@ export default function RmActivityDashboard({ cases }) {
       return 0;
     });
   }, [allProfiles, search, flagFilter, sortField, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProfiles.length / PAGE_SIZE));
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, flagFilter, sortField, sortDir, cases]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const pagedProfiles = useMemo(() => (
+    filteredProfiles.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  ), [filteredProfiles, page]);
 
   /* Count all RMs even without flags for the summary bar total */
   const allRmCount = useMemo(() => {
@@ -389,6 +405,11 @@ export default function RmActivityDashboard({ cases }) {
           </p>
         </div>
         <div className="rmad-head-right">
+          {onBack ? (
+            <button type="button" className="rmad-back-btn" onClick={onBack}>
+              Back to Case Tracking
+            </button>
+          ) : null}
           <span className="rmad-flagged-pill">
             <ArrowUpRight size={13} />
             {allProfiles.length} flagged of {allRmCount} RMs
@@ -467,11 +488,35 @@ export default function RmActivityDashboard({ cases }) {
               </tr>
             </thead>
             <tbody>
-              {filteredProfiles.map((p, i) => (
-                <RmRow key={p.name} profile={p} rank={i + 1} />
+              {pagedProfiles.map((p, i) => (
+                <RmRow key={p.name} profile={p} rank={(page - 1) * PAGE_SIZE + i + 1} />
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {filteredProfiles.length > 0 && (
+        <div className="rmad-pagination">
+          <button
+            type="button"
+            className="rmad-page-btn"
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+          >
+            Previous
+          </button>
+          <span className="rmad-page-info">
+            {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filteredProfiles.length)} of {filteredProfiles.length}
+          </span>
+          <button
+            type="button"
+            className="rmad-page-btn"
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+          >
+            Next
+          </button>
         </div>
       )}
 
@@ -511,6 +556,18 @@ export default function RmActivityDashboard({ cases }) {
           align-items: center;
           gap: 10px;
         }
+
+        .rmad-back-btn {
+          border: 1px solid #b8cef4;
+          background: #ffffff;
+          color: #1256bf;
+          font-size: 12px;
+          font-weight: 800;
+          border-radius: 10px;
+          padding: 7px 12px;
+        }
+
+        .rmad-back-btn:hover { background: #f0f6ff; }
 
         .rmad-flagged-pill {
           display: inline-flex;
@@ -833,6 +890,35 @@ export default function RmActivityDashboard({ cases }) {
           color: var(--gray);
           font-style: italic;
           font-size: 14px;
+        }
+
+        .rmad-pagination {
+          margin-top: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 10px;
+        }
+
+        .rmad-page-btn {
+          border: 1px solid #c7d7f3;
+          background: #ffffff;
+          color: #184489;
+          border-radius: 8px;
+          font-size: 12px;
+          font-weight: 800;
+          padding: 6px 11px;
+        }
+
+        .rmad-page-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .rmad-page-info {
+          font-size: 12px;
+          color: #637ba1;
+          font-weight: 700;
         }
 
         .rmad-empty {
