@@ -851,6 +851,12 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
   color: #1a3660;
 }
 .workflow-meta-chip strong { color: var(--blue); }
+.wf-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wf-rm-select { min-width: 210px; }
 .workflow-legend {
   display: flex;
   align-items: center;

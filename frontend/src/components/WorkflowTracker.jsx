@@ -138,10 +138,15 @@ function renderPurposeWithBoldOd(purpose) {
   });
 }
 
+function getRmName(row) {
+  return String(row.RM_NAME || row.RM_Name || row.rm_name || '').trim();
+}
+
 export default function WorkflowTracker({ cases, branches = [], globalBranch = 'All', excludedPurposeCases = [] }) {
   const [activeStepId, setActiveStepId] = useState(null);
   const [showSpecial, setShowSpecial] = useState(false);
   const [wfBranch, setWfBranch] = useState('All');
+  const [wfRm, setWfRm] = useState('All');
 
   // Global filter is strongest — force section filter to match it when set
   useEffect(() => {
@@ -152,9 +157,21 @@ export default function WorkflowTracker({ cases, branches = [], globalBranch = '
     }
   }, [globalBranch, branches]);
 
-  const workflowCases = useMemo(() =>
-    wfBranch === 'All' ? cases : cases.filter(r => r.BRANCH_NAME === wfBranch),
-  [cases, wfBranch]);
+  const rmOptions = useMemo(() => {
+    const scopedCases = wfBranch === 'All' ? cases : cases.filter(r => r.BRANCH_NAME === wfBranch);
+    return [...new Set(scopedCases.map(getRmName).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  }, [cases, wfBranch]);
+
+  useEffect(() => {
+    if (wfRm !== 'All' && !rmOptions.includes(wfRm)) {
+      setWfRm('All');
+    }
+  }, [wfRm, rmOptions]);
+
+  const workflowCases = useMemo(() => {
+    const scopedCases = wfBranch === 'All' ? cases : cases.filter(r => r.BRANCH_NAME === wfBranch);
+    return wfRm === 'All' ? scopedCases : scopedCases.filter(row => getRmName(row) === wfRm);
+  }, [cases, wfBranch, wfRm]);
 
   const stepData = useMemo(() => FLOW_STEPS.map(step => {
     const matchingCases = workflowCases.filter(row => {
@@ -173,11 +190,12 @@ export default function WorkflowTracker({ cases, branches = [], globalBranch = '
     return { ...step, cases: matchingCases, count: matchingCases.length };
   }), [workflowCases]);
 
-  const visibleExcludedPurposeCases = useMemo(() => (
-    wfBranch === 'All'
+  const visibleExcludedPurposeCases = useMemo(() => {
+    const scopedExcluded = wfBranch === 'All'
       ? excludedPurposeCases
-      : excludedPurposeCases.filter(row => row.BRANCH_NAME === wfBranch)
-  ), [excludedPurposeCases, wfBranch]);
+      : excludedPurposeCases.filter(row => row.BRANCH_NAME === wfBranch);
+    return wfRm === 'All' ? scopedExcluded : scopedExcluded.filter(row => getRmName(row) === wfRm);
+  }, [excludedPurposeCases, wfBranch, wfRm]);
 
   const allSteps = useMemo(() => [...stepData, ...specialData], [stepData, specialData]);
   const activeStep = allSteps.find(step => step.id === activeStepId) || null;
@@ -199,16 +217,27 @@ export default function WorkflowTracker({ cases, branches = [], globalBranch = '
               <span className="wf-dot-active" />
               <strong>{totalActive}</strong> active cases across <strong>{stagesWithCases}</strong> stages
             </div>
-            <select
-              className="select-input wf-branch-select"
-              value={wfBranch}
-              onChange={e => setWfBranch(e.target.value)}
-              disabled={globalBranch !== 'All'}
-              aria-label="Filter workflow by branch"
-            >
-              <option value="All">Branch: All</option>
-              {branches.map(b => <option key={b} value={b}>{b}</option>)}
-            </select>
+            <div className="wf-filter-row">
+              <select
+                className="select-input wf-branch-select"
+                value={wfBranch}
+                onChange={e => setWfBranch(e.target.value)}
+                disabled={globalBranch !== 'All'}
+                aria-label="Filter workflow by branch"
+              >
+                <option value="All">Branch: All</option>
+                {branches.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+              <select
+                className="select-input wf-rm-select"
+                value={wfRm}
+                onChange={e => setWfRm(e.target.value)}
+                aria-label="Filter workflow by RM name"
+              >
+                <option value="All">RM: All</option>
+                {rmOptions.map(rm => <option key={rm} value={rm}>{rm}</option>)}
+              </select>
+            </div>
             <div className="workflow-legend">
               <span className="wf-legend-item"><span className="wf-dot-active" /> Active</span>
               <span className="wf-legend-item"><span className="wf-dot-idle" /> No cases</span>
@@ -287,7 +316,7 @@ export default function WorkflowTracker({ cases, branches = [], globalBranch = '
                     <div key={`${row.APPLICATION_NUMBER_ID || 'no-id'}-${index}`} className="wf-removed-od-row">
                       <div className="wf-removed-od-customer">
                         <strong>{row.CUSTOMER_NAME || '-'}</strong>
-                        <span>{row.RM_NAME || row.RM_Name || row.rm_name || '-'}</span>
+                        <span>{getRmName(row) || '-'}</span>
                       </div>
                       <div className="wf-removed-od-branch">{row.BRANCH_NAME || '-'}</div>
                       <div className="wf-removed-od-purpose">{renderPurposeWithBoldOd(row.PURPOSE)}</div>
