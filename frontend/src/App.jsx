@@ -67,6 +67,7 @@ function exportCsv(rows) {
 
 export default function App() {
   const [cases, setCases] = useState([]);
+  const [excludedPurposeCases, setExcludedPurposeCases] = useState([]);
   const [source, setSource] = useState('sample');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -87,12 +88,17 @@ export default function App() {
       setLoading(true);
       setError('');
       const result = await fetchLosCases();
-      const allowed = (result.data || []).filter(row =>
-        !EXCLUDED_PRODUCTS.has(row.PRODUCTS) &&
-        !EXCLUDED_LOAN_TYPES.has(row.LOAN_TYPE) &&
-        !hasExcludedPurpose(row.PURPOSE)
-      );
+      const removedByPurpose = [];
+      const allowed = (result.data || []).filter(row => {
+        const purposeExcluded = hasExcludedPurpose(row.PURPOSE);
+        if (purposeExcluded) removedByPurpose.push(row);
+
+        return !EXCLUDED_PRODUCTS.has(row.PRODUCTS)
+          && !EXCLUDED_LOAN_TYPES.has(row.LOAN_TYPE)
+          && !purposeExcluded;
+      });
       setCases(allowed);
+      setExcludedPurposeCases(removedByPurpose);
       setSource(result.source);
     } catch (err) {
       setError(err.message || 'Failed to fetch Google Sheet data');
@@ -308,7 +314,12 @@ export default function App() {
             onExport={() => exportCsv(filtered)}
           />
 
-        <WorkflowTracker cases={filtered} branches={branches} globalBranch={filters.branch} />
+        <WorkflowTracker
+          cases={filtered}
+          branches={branches}
+          globalBranch={filters.branch}
+          excludedPurposeCases={excludedPurposeCases}
+        />
 
         <section className="panel">
           <div className="panel-head">

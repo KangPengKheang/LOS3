@@ -126,7 +126,19 @@ export const SPECIAL_STEPS = [
   },
 ];
 
-export default function WorkflowTracker({ cases, branches = [], globalBranch = 'All' }) {
+function renderPurposeWithBoldOd(purpose) {
+  const text = String(purpose || '-');
+  const chunks = text.split(/(\bOD\b)/);
+
+  return chunks.map((chunk, index) => {
+    if (chunk === 'OD') {
+      return <strong key={`od-${index}`}>OD</strong>;
+    }
+    return <React.Fragment key={`txt-${index}`}>{chunk}</React.Fragment>;
+  });
+}
+
+export default function WorkflowTracker({ cases, branches = [], globalBranch = 'All', excludedPurposeCases = [] }) {
   const [activeStepId, setActiveStepId] = useState(null);
   const [showSpecial, setShowSpecial] = useState(false);
   const [wfBranch, setWfBranch] = useState('All');
@@ -160,6 +172,12 @@ export default function WorkflowTracker({ cases, branches = [], globalBranch = '
     });
     return { ...step, cases: matchingCases, count: matchingCases.length };
   }), [workflowCases]);
+
+  const visibleExcludedPurposeCases = useMemo(() => (
+    wfBranch === 'All'
+      ? excludedPurposeCases
+      : excludedPurposeCases.filter(row => row.BRANCH_NAME === wfBranch)
+  ), [excludedPurposeCases, wfBranch]);
 
   const allSteps = useMemo(() => [...stepData, ...specialData], [stepData, specialData]);
   const activeStep = allSteps.find(step => step.id === activeStepId) || null;
@@ -257,6 +275,29 @@ export default function WorkflowTracker({ cases, branches = [], globalBranch = '
                 {step.count > 0 && <div className="wf-step-count">{step.count}</div>}
               </div>
             ))}
+
+            <div className="wf-removed-od-panel" aria-live="polite">
+              <div className="wf-removed-od-head">
+                Excluded OD Purpose Cases ({visibleExcludedPurposeCases.length})
+              </div>
+
+              {visibleExcludedPurposeCases.length > 0 ? (
+                <div className="wf-removed-od-list">
+                  {visibleExcludedPurposeCases.map((row, index) => (
+                    <div key={`${row.APPLICATION_NUMBER_ID || 'no-id'}-${index}`} className="wf-removed-od-row">
+                      <div className="wf-removed-od-customer">
+                        <strong>{row.CUSTOMER_NAME || '-'}</strong>
+                        <span>{row.RM_NAME || row.RM_Name || row.rm_name || '-'}</span>
+                      </div>
+                      <div className="wf-removed-od-branch">{row.BRANCH_NAME || '-'}</div>
+                      <div className="wf-removed-od-purpose">{renderPurposeWithBoldOd(row.PURPOSE)}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="wf-removed-od-empty">No OD-excluded cases in the latest load.</div>
+              )}
+            </div>
           </div>
         )}
       </div>
