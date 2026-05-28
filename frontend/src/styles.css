@@ -383,14 +383,17 @@ h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spa
   outline: none;
 }
 .search-input {
-  min-width: 180px;
+  min-width: 120px;
   flex: 1 1 0;
-  max-width: 320px;
+  max-width: none;
 }
 .select-input {
-  min-width: 140px;
+  min-width: 120px;
   flex: 1 1 0;
-  max-width: 220px;
+  max-width: none;
+}
+.export-btn {
+  flex: 0 0 auto;
 }
 .search-input:focus, .select-input:focus { border-color: #93b7ff; box-shadow: 0 0 0 4px rgba(20, 99, 216, .10); }
 
