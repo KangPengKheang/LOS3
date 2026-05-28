@@ -721,9 +721,29 @@ export default function ExportPdfModal({ cases, onClose }) {
 
         {/* ── Body ── */}
         <div className="pdf-modal-body">
-          <div style={{ marginBottom: 12 }}>
-            <label htmlFor="pdf-report-type" style={{ fontWeight: 500, marginRight: 8 }}>Report Type:</label>
-            <select id="pdf-report-type" value={reportType} onChange={e => setReportType(e.target.value)}>
+          <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <label htmlFor="pdf-report-type" style={{ fontWeight: 600, color: `rgb(${CM.green.join(',')})`, fontSize: 15, letterSpacing: 0.2, marginRight: 8 }}>
+              Report Type:
+            </label>
+            <select
+              id="pdf-report-type"
+              value={reportType}
+              onChange={e => setReportType(e.target.value)}
+              style={{
+                background: `linear-gradient(90deg, rgb(${CM.pale.join(',')}), rgb(${CM.paleAlt.join(',')}))`,
+                border: `2px solid rgb(${CM.green.join(',')})`,
+                color: `rgb(${CM.dark.join(',')})`,
+                borderRadius: 8,
+                fontWeight: 600,
+                fontSize: 15,
+                padding: '6px 18px',
+                outline: 'none',
+                boxShadow: `0 1px 6px 0 rgba(${CM.green.join(',')},0.08)`,
+                transition: 'border 0.2s',
+                cursor: 'pointer',
+                minWidth: 160,
+              }}
+            >
               <option value="workflow">Workflow Stages</option>
               <option value="losdays">LOS Days</option>
             </select>
