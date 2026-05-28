@@ -485,7 +485,9 @@ export default function ExportPdfModal({ cases, onClose }) {
   }
 
   const matrix = useMemo(() => {
-    if (reportType === 'workflow') return buildMatrix(filtered, branches);
+    // Exclude cases with specified purposes for both report types
+    const filteredCases = cases.filter(row => !isExcludedPurpose(row.PURPOSE));
+    if (reportType === 'workflow') return buildMatrix(filteredCases, branches);
     // LOS Days matrix: count all cases that are active (not special) as of end of selected range, and not excluded by purpose
     const branchSet = new Set(branches);
     const counts = {};
@@ -494,8 +496,7 @@ export default function ExportPdfModal({ cases, onClose }) {
     });
     // Use end of range (or today) as reference
     const to = dateTo ? parseDate(dateTo) : new Date();
-    cases.forEach(row => {
-      if (isExcludedPurpose(row.PURPOSE)) return;
+    filteredCases.forEach(row => {
       const branch = normalizeBranchName(row.BRANCH_NAME);
       if (!branchSet.has(branch)) return;
       const status = String(row.STATUS || '').toLowerCase();
