@@ -528,7 +528,7 @@ export default function ExportPdfModal({ cases, onClose }) {
     if (reportType === 'workflow') {
       return REPORT_STEPS.map(s => branches.reduce((sum, b) => sum + (matrix[b]?.[s.id] ?? 0), 0));
     } else {
-      return LOS_BUCKETS.map(bucket => branches.reduce((sum, b) => sum + (matrix[b]?.[bucket.id] ?? 0), 0));
+      return LOS_DAYS_RANGES.map((_, idx) => branches.reduce((sum, b) => sum + (matrix[b]?.[idx] ?? 0), 0));
     }
   }, [branches, matrix, reportType]);
 
@@ -559,7 +559,7 @@ export default function ExportPdfModal({ cases, onClose }) {
     const W = 297;
     const H = 210;
     const matrixGrandTotal = branches.reduce(
-      (sum, branch) => sum + LOS_BUCKETS.reduce((rowTotal, bucket) => rowTotal + (matrix[branch]?.[bucket.id] ?? 0), 0),
+      (sum, branch) => sum + LOS_DAYS_RANGES.reduce((rowTotal, _, idx) => rowTotal + (matrix[branch]?.[idx] ?? 0), 0),
       0,
     );
 
@@ -615,9 +615,9 @@ export default function ExportPdfModal({ cases, onClose }) {
     // KPI summary bar
     const kpis = [
       { label: 'Total Cases', value: matrixGrandTotal, color: CM.mid },
-      ...LOS_BUCKETS.map(bucket => ({
+      ...LOS_DAYS_RANGES.map((bucket, idx) => ({
         label: bucket.label,
-        value: branches.reduce((sum, b) => sum + (matrix[b]?.[bucket.id] ?? 0), 0),
+        value: branches.reduce((sum, b) => sum + (matrix[b]?.[idx] ?? 0), 0),
         color: CM.green,
       })),
     ];
@@ -639,13 +639,13 @@ export default function ExportPdfModal({ cases, onClose }) {
     doc.rect(0, 48.5, W, 0.6, 'F');
 
     // Main table
-    const colHeaders = LOS_BUCKETS.map(b => b.label);
-    const totalColIdx = LOS_BUCKETS.length + 1;
+    const colHeaders = LOS_DAYS_RANGES.map(b => b.label);
+    const totalColIdx = LOS_DAYS_RANGES.length + 1;
     const bodyRows = branches.map(branch => {
-      const rowTotal = LOS_BUCKETS.reduce((sum, b) => sum + (matrix[branch]?.[b.id] ?? 0), 0);
-      return [branch, ...LOS_BUCKETS.map(b => matrix[branch]?.[b.id] || 0), rowTotal];
+      const rowTotal = LOS_DAYS_RANGES.reduce((sum, _, idx) => sum + (matrix[branch]?.[idx] ?? 0), 0);
+      return [branch, ...LOS_DAYS_RANGES.map((_, idx) => matrix[branch]?.[idx] || 0), rowTotal];
     });
-    const colTotals = LOS_BUCKETS.map(b => branches.reduce((sum, br) => sum + (matrix[br]?.[b.id] ?? 0), 0));
+    const colTotals = LOS_DAYS_RANGES.map((_, idx) => branches.reduce((sum, br) => sum + (matrix[br]?.[idx] ?? 0), 0));
     const tableGrandTotal = colTotals.reduce((a, b) => a + b, 0);
     bodyRows.push(['TOTAL', ...colTotals, tableGrandTotal]);
 
@@ -696,8 +696,43 @@ export default function ExportPdfModal({ cases, onClose }) {
             data.cell.styles.textColor = CM.mid;
             data.cell.styles.fontStyle = 'bold';
           } else {
-            // Show faint 0 for empty cells in LOS Days, dash for workflow
-            if (reportType === 'losdays') {
+            data.cell.styles.textColor = [195, 215, 205];
+            data.cell.raw = '—';
+            data.cell.text = ['—'];
+          }
+        }
+      },
+      didDrawPage(data) {
+        doc.setFillColor(...CM.dark);
+        doc.rect(0, H - 9, W, 9, 'F');
+        doc.setFillColor(...CM.mid);
+        doc.rect(0, H - 9, W, 1, 'F');
+        doc.setTextColor(...CM.pale);
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Chip Mong Bank  —  LOS Dashboard', 8, H - 3);
+        doc.text(`Page ${data.pageNumber}  |  CONFIDENTIAL`, W / 2, H - 3, { align: 'center' });
+        doc.text(new Date().toLocaleDateString('en-US', { dateStyle: 'medium' }), W - 8, H - 3, { align: 'right' });
+      },
+      margin: { left: 8, right: 8, bottom: 13 },
+    });
+
+    if (inactiveBranches.length > 0) {
+      const pageCount = doc.internal.getNumberOfPages();
+      doc.setPage(pageCount);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6.5);
+      doc.setTextColor(...CM.danger);
+      const note = `Inactive branches removed from table: ${inactiveBranches.join(', ')}`;
+      const noteLines = doc.splitTextToSize(note, W - 16);
+      const lineHeight = 3.1;
+      const startY = Math.max(H - 14 - (noteLines.length - 1) * lineHeight, 186);
+      doc.text(noteLines, 8, startY);
+    }
+
+    const ds = `${(dateFrom || 'all').replace(/-/g, '')}to${(dateTo || 'all').replace(/-/g, '')}`;
+    doc.save(`LOS_Branch_LOSDays_${ds}.pdf`);
+  }
               data.cell.styles.textColor = [140, 180, 160]; // brighter but still subtle
               data.cell.raw = '0';
               data.cell.text = ['0'];
