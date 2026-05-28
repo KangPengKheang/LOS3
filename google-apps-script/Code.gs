@@ -4,9 +4,9 @@
 
 // Optional but recommended: paste your Google Sheet ID here.
 // If this is left blank, the script will try to use the spreadsheet attached to this Apps Script project.
-const SPREADSHEET_ID = "";
+const SPREADSHEET_ID = "1Aad1I6a6bO8F_4Fn3IYwDOutd1dvGRvmeEQNMFlVCG8";
 const SHEET_NAME = "LOS_Data";
-const DRAWDOWN_SHEET_NAME = "DD";
+const DRAWDOWN_SHEET_NAME = "DD_Data";
 const DRAWDOWN_KEY_FIELD = "APPLICATION_NUMBER";
 
 const REMARK_COLUMNS = [
@@ -134,6 +134,7 @@ function handleSyncRows_(payload) {
 
     const ss = getSpreadsheet_();
     const drawdownIds = getApplicationIdsFromSheet_(ss, DRAWDOWN_SHEET_NAME, DRAWDOWN_KEY_FIELD);
+    const drawdownIdCount = Object.keys(drawdownIds).length;
     const sheet = getLosSheet_();
     const headers = ensureColumns_(sheet, [keyField].concat(columnsToUpdate));
     const applicationIdColumn = headers.indexOf(keyField) + 1;
@@ -142,19 +143,34 @@ function handleSyncRows_(payload) {
       throw new Error(keyField + " column not found.");
     }
 
-    const idToRowNumber = {};
+    let lastRow = sheet.getLastRow();
     let removedDrawdown = 0;
+    let losRowsChecked = Math.max(lastRow - 1, 0);
+    const matchedDrawdownExamples = [];
 
-    for (let rowNumber = sheet.getLastRow(); rowNumber >= 2; rowNumber -= 1) {
-      const applicationId = normalizeApplicationId_(sheet.getRange(rowNumber, applicationIdColumn).getDisplayValue());
+    if (lastRow >= 2) {
+      const existingApplicationIds = sheet
+        .getRange(2, applicationIdColumn, lastRow - 1, 1)
+        .getDisplayValues()
+        .flat()
+        .map(value => normalizeApplicationId_(value));
+      const rowsToDelete = [];
 
-      if (drawdownIds[applicationId]) {
-        sheet.deleteRow(rowNumber);
-        removedDrawdown += 1;
-      }
+      existingApplicationIds.forEach((applicationId, index) => {
+        if (drawdownIds[applicationId]) {
+          rowsToDelete.push(index + 2);
+
+          if (matchedDrawdownExamples.length < 5) {
+            matchedDrawdownExamples.push(applicationId);
+          }
+        }
+      });
+
+      removedDrawdown = deleteRowsByNumber_(sheet, rowsToDelete);
+      lastRow = sheet.getLastRow();
     }
 
-    const lastRow = sheet.getLastRow();
+    const idToRowNumber = {};
 
     if (lastRow >= 2) {
       const applicationIds = sheet
@@ -219,7 +235,10 @@ function handleSyncRows_(payload) {
       appended: appended,
       skipped: skipped,
       skippedDrawdown: skippedDrawdown,
-      removedDrawdown: removedDrawdown
+      removedDrawdown: removedDrawdown,
+      drawdownIdCount: drawdownIdCount,
+      losRowsChecked: losRowsChecked,
+      matchedDrawdownExamples: matchedDrawdownExamples
     });
   } catch (err) {
     return jsonOutput({
@@ -287,6 +306,35 @@ function normalizeApplicationId_(value) {
   return String(value || "")
     .replace(/[\s\u00A0\u200B-\u200D\uFEFF]/g, "")
     .toUpperCase();
+}
+
+function deleteRowsByNumber_(sheet, rowNumbers) {
+  if (!rowNumbers.length) {
+    return 0;
+  }
+
+  const sortedRows = rowNumbers.slice().sort((a, b) => b - a);
+  let deleted = 0;
+  let rangeStart = sortedRows[0];
+  let rangeLength = 1;
+
+  for (let index = 1; index < sortedRows.length; index += 1) {
+    const rowNumber = sortedRows[index];
+
+    if (rowNumber === rangeStart - rangeLength) {
+      rangeLength += 1;
+    } else {
+      sheet.deleteRows(rangeStart - rangeLength + 1, rangeLength);
+      deleted += rangeLength;
+      rangeStart = rowNumber;
+      rangeLength = 1;
+    }
+  }
+
+  sheet.deleteRows(rangeStart - rangeLength + 1, rangeLength);
+  deleted += rangeLength;
+
+  return deleted;
 }
 
 function getSheetData_(sheet) {
