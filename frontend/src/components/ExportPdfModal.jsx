@@ -670,7 +670,7 @@ export default function ExportPdfModal({ cases, onClose }) {
           } else {
             // Show faint 0 for empty cells in LOS Days, dash for workflow
             if (reportType === 'losdays') {
-              data.cell.styles.textColor = [210, 232, 218]; // very faint green
+              data.cell.styles.textColor = [140, 180, 160]; // brighter but still subtle
               data.cell.raw = '0';
               data.cell.text = ['0'];
             } else {
