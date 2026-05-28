@@ -1,0 +1,22 @@
+/* Fix react-select overlay bug: prevent full-screen white/black overlay */
+.searchable-select__menu {
+  z-index: 1002;
+}
+.searchable-select__menu-list {
+  background: #fff;
+}
+.searchable-select__control {
+  background: #fff;
+}
+/* Remove any fullscreen overlay from react-select */
+.searchable-select__menu-portal {
+  position: absolute !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: auto !important;
+  height: auto !important;
+  background: transparent !important;
+  pointer-events: none !important;
+}
