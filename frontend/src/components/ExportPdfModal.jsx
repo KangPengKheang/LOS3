@@ -733,46 +733,6 @@ export default function ExportPdfModal({ cases, onClose }) {
     const ds = `${(dateFrom || 'all').replace(/-/g, '')}to${(dateTo || 'all').replace(/-/g, '')}`;
     doc.save(`LOS_Branch_LOSDays_${ds}.pdf`);
   }
-              data.cell.styles.textColor = [140, 180, 160]; // brighter but still subtle
-              data.cell.raw = '0';
-              data.cell.text = ['0'];
-            } else {
-              data.cell.styles.textColor = [195, 215, 205];
-              data.cell.raw = '—';
-              data.cell.text = ['—'];
-            }
-          }
-        }
-      },
-      didDrawPage(data) {
-        doc.setFillColor(...CM.dark);
-        doc.rect(0, H - 9, W, 9, 'F');
-        doc.setFillColor(...CM.mid);
-        doc.rect(0, H - 9, W, 1, 'F');
-        doc.setTextColor(...CM.pale);
-        doc.setFontSize(6.5);
-        doc.setFont('helvetica', 'normal');
-        doc.text('Chip Mong Bank  —  LOS Dashboard', 8, H - 3);
-        doc.text(`Page ${data.pageNumber}  |  CONFIDENTIAL`, W / 2, H - 3, { align: 'center' });
-        doc.text(new Date().toLocaleDateString('en-US', { dateStyle: 'medium' }), W - 8, H - 3, { align: 'right' });
-      },
-      margin: { left: 8, right: 8, bottom: 13 },
-    });
-    if (inactiveBranches.length > 0) {
-      const pageCount = doc.internal.getNumberOfPages();
-      doc.setPage(pageCount);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(6.5);
-      doc.setTextColor(...CM.danger);
-      const note = `Inactive branches removed from table: ${inactiveBranches.join(', ')}`;
-      const noteLines = doc.splitTextToSize(note, W - 16);
-      const lineHeight = 3.1;
-      const startY = Math.max(H - 14 - (noteLines.length - 1) * lineHeight, 186);
-      doc.text(noteLines, 8, startY);
-    }
-    const ds = `${(dateFrom || 'all').replace(/-/g, '')}to${(dateTo || 'all').replace(/-/g, '')}`;
-    doc.save(`LOS_Branch_LOSDays_${ds}.pdf`);
-  }
 
   return (
     <div className="pdf-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label="Export PDF Report">
