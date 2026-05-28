@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { X, FileDown, Calendar, Loader2 } from 'lucide-react';
 import { statusMatches } from '../utils/statusUtils.js';
-import { parseDate } from '../utils/dateUtils.js';
+import { parseDate, getLosDays } from '../utils/dateUtils.js';
+import { LOS_BUCKETS, getLosBucket } from '../utils/losBuckets.js';
 import { FLOW_STEPS, SPECIAL_STEPS } from './WorkflowTracker.jsx';
 import { BRANCH_MASTER_LIST } from '../data/branchMasterList.js';
 import chipMongBankLogo from '../assets/chip-mong-bank-logo.png.jpg';
@@ -411,6 +412,7 @@ function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function ExportPdfModal({ cases, onClose }) {
+  const [reportType, setReportType] = useState('workflow'); // 'workflow' or 'losdays'
   const bounds = useMemo(() => getDateBounds(cases), [cases]);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -418,6 +420,7 @@ export default function ExportPdfModal({ cases, onClose }) {
 
   // Close on Escape
   useEffect(() => {
+
     const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
@@ -444,12 +447,45 @@ export default function ExportPdfModal({ cases, onClose }) {
     buildOrderedBranches(filtered)
   ), [filtered]);
 
-  const matrix = useMemo(() => buildMatrix(filtered, branches), [filtered, branches]);
 
-  const branchCaseTotals = useMemo(
-    () => buildBranchCaseTotals(filtered, branches),
-    [filtered, branches]
-  );
+  // --- Matrix and totals for both report types ---
+  const matrix = useMemo(() => {
+    if (reportType === 'workflow') return buildMatrix(filtered, branches);
+    // LOS Days matrix
+    const branchSet = new Set(branches);
+    const counts = {};
+    branches.forEach(b => {
+      counts[b] = {};
+      LOS_BUCKETS.forEach(bucket => { counts[b][bucket.id] = 0; });
+    });
+    filtered.forEach(row => {
+      const branch = normalizeBranchName(row.BRANCH_NAME);
+      if (!branchSet.has(branch)) return;
+      const los = getLosDays(row);
+      const bucket = getLosBucket(los);
+      counts[branch][bucket]++;
+    });
+    return counts;
+  }, [filtered, branches, reportType]);
+
+  const branchCaseTotals = useMemo(() => {
+    const totals = {};
+    branches.forEach(branch => { totals[branch] = 0; });
+    if (reportType === 'workflow') {
+      filtered.forEach(row => {
+        const branch = normalizeBranchName(row.BRANCH_NAME);
+        if (!totals.hasOwnProperty(branch)) return;
+        totals[branch] += 1;
+      });
+    } else {
+      filtered.forEach(row => {
+        const branch = normalizeBranchName(row.BRANCH_NAME);
+        if (!totals.hasOwnProperty(branch)) return;
+        totals[branch] += 1;
+      });
+    }
+    return totals;
+  }, [filtered, branches, reportType]);
 
   const sortedBranches = useMemo(() => (
     [...branches].sort((a, b) => {
@@ -460,26 +496,212 @@ export default function ExportPdfModal({ cases, onClose }) {
     })
   ), [branches, branchCaseTotals]);
 
-  const colTotals = useMemo(() => (
-    REPORT_STEPS.map(s => branches.reduce((sum, b) => sum + (matrix[b]?.[s.id] ?? 0), 0))
-  ), [branches, matrix]);
+  const colTotals = useMemo(() => {
+    if (reportType === 'workflow') {
+      return REPORT_STEPS.map(s => branches.reduce((sum, b) => sum + (matrix[b]?.[s.id] ?? 0), 0));
+    } else {
+      return LOS_BUCKETS.map(bucket => branches.reduce((sum, b) => sum + (matrix[b]?.[bucket.id] ?? 0), 0));
+    }
+  }, [branches, matrix, reportType]);
 
   const matrixGrandTotal = useMemo(() => colTotals.reduce((sum, value) => sum + value, 0), [colTotals]);
 
   function handleGenerate() {
     setGenerating(true);
-    // Dynamically import heavy PDF libs so they don't bloat the initial bundle
     Promise.all([
       import('jspdf').then(m => m.jsPDF),
       import('jspdf-autotable').then(m => m.default),
       loadImageDataUrl(chipMongBankLogo),
     ]).then(([jsPDF, autoTable, logoMeta]) => {
       try {
-        generatePdf(jsPDF, autoTable, filtered, sortedBranches, inactiveBranches, matrix, branchCaseTotals, dateFrom, dateTo, logoMeta);
+        if (reportType === 'workflow') {
+          generatePdf(jsPDF, autoTable, filtered, sortedBranches, inactiveBranches, matrix, branchCaseTotals, dateFrom, dateTo, logoMeta);
+        } else {
+          generateLosDaysPdf(jsPDF, autoTable, filtered, sortedBranches, inactiveBranches, matrix, branchCaseTotals, dateFrom, dateTo, logoMeta);
+        }
       } finally {
         setGenerating(false);
       }
     }).catch(() => setGenerating(false));
+  }
+
+  // --- PDF generator for LOS Days ---
+  function generateLosDaysPdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix, branchCaseTotals, dateFrom, dateTo, logoMeta) {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const W = 297;
+    const H = 210;
+    const matrixGrandTotal = branches.reduce(
+      (sum, branch) => sum + LOS_BUCKETS.reduce((rowTotal, bucket) => rowTotal + (matrix[branch]?.[bucket.id] ?? 0), 0),
+      0,
+    );
+
+    // Header bar (same as before)
+    doc.setFillColor(...CM.dark);
+    doc.rect(0, 0, W, 30, 'F');
+    doc.setFillColor(...CM.mid);
+    doc.roundedRect(8, 5, 38, 20, 2, 2, 'F');
+    doc.setFillColor(...CM.white);
+    doc.roundedRect(9.5, 6.5, 35, 17, 1.5, 1.5, 'F');
+    if (logoMeta?.dataUrl && logoMeta?.width && logoMeta?.height) {
+      const boxX = 10.5;
+      const boxY = 7.2;
+      const boxW = 33;
+      const boxH = 15.5;
+      const imageRatio = logoMeta.width / logoMeta.height;
+      const boxRatio = boxW / boxH;
+      let drawW = boxW;
+      let drawH = boxH;
+      if (imageRatio > boxRatio) {
+        drawH = boxW / imageRatio;
+      } else {
+        drawW = boxH * imageRatio;
+      }
+      const drawX = boxX + (boxW - drawW) / 2;
+      const drawY = boxY + (boxH - drawH) / 2;
+      doc.addImage(logoMeta.dataUrl, 'JPEG', drawX, drawY, drawW, drawH, undefined, 'FAST');
+    } else {
+      doc.setTextColor(...CM.dark);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text('CHIP MONG', 27, 13.5, { align: 'center' });
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'normal');
+      doc.text('BANK', 27, 19, { align: 'center' });
+    }
+    doc.setFontSize(17);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...CM.white);
+    doc.text('LOS Days Summary Report', 54, 14);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...CM.light);
+    doc.text(`Application Date: ${fmtDate(dateFrom)}  –  ${fmtDate(dateTo)}`, 54, 22);
+    doc.setFontSize(8);
+    doc.setTextColor(...CM.pale);
+    const genDate = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+    doc.text(`Generated: ${genDate}`, W - 8, 14, { align: 'right' });
+    doc.text(`Total Cases: ${matrixGrandTotal}  |  Branches: ${branches.length}`, W - 8, 22, { align: 'right' });
+    doc.setFillColor(...CM.light);
+    doc.rect(0, 30, W, 2.5, 'F');
+
+    // KPI summary bar
+    const kpis = [
+      { label: 'Total Cases', value: matrixGrandTotal, color: CM.mid },
+      ...LOS_BUCKETS.map(bucket => ({
+        label: bucket.label,
+        value: branches.reduce((sum, b) => sum + (matrix[b]?.[bucket.id] ?? 0), 0),
+        color: CM.green,
+      })),
+    ];
+    const kpiW = W / kpis.length;
+    kpis.forEach((kpi, i) => {
+      const x = i * kpiW;
+      doc.setFillColor(...(i % 2 === 0 ? CM.pale : CM.paleAlt));
+      doc.rect(x, 32.5, kpiW, 16, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(...kpi.color);
+      doc.text(String(kpi.value), x + kpiW / 2, 42, { align: 'center' });
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.setTextColor(...CM.gray);
+      doc.text(kpi.label, x + kpiW / 2, 47, { align: 'center' });
+    });
+    doc.setFillColor(...CM.mid);
+    doc.rect(0, 48.5, W, 0.6, 'F');
+
+    // Main table
+    const colHeaders = LOS_BUCKETS.map(b => b.label);
+    const totalColIdx = LOS_BUCKETS.length + 1;
+    const bodyRows = branches.map(branch => {
+      const rowTotal = LOS_BUCKETS.reduce((sum, b) => sum + (matrix[branch]?.[b.id] ?? 0), 0);
+      return [branch, ...LOS_BUCKETS.map(b => matrix[branch]?.[b.id] || 0), rowTotal];
+    });
+    const colTotals = LOS_BUCKETS.map(b => branches.reduce((sum, br) => sum + (matrix[br]?.[b.id] ?? 0), 0));
+    const tableGrandTotal = colTotals.reduce((a, b) => a + b, 0);
+    bodyRows.push(['TOTAL', ...colTotals, tableGrandTotal]);
+
+    autoTable(doc, {
+      startY: 51,
+      head: [['Branch', ...colHeaders, 'TOTAL']],
+      body: bodyRows,
+      tableWidth: W - 16,
+      theme: 'grid',
+      styles: {
+        fontSize: 7.5,
+        cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 },
+        valign: 'middle',
+        halign: 'center',
+        lineColor: [210, 232, 218],
+        lineWidth: 0.25,
+        overflow: 'linebreak',
+      },
+      headStyles: {
+        fillColor: CM.mid,
+        textColor: CM.white,
+        fontStyle: 'bold',
+        fontSize: 7,
+        halign: 'center',
+        minCellHeight: 10,
+      },
+      columnStyles: {
+        0: { halign: 'left', fontStyle: 'bold', fillColor: CM.pale, cellWidth: 42 },
+        [totalColIdx]: { fontStyle: 'bold', fillColor: CM.pale, textColor: CM.mid, cellWidth: 18 },
+      },
+      alternateRowStyles: { fillColor: CM.paleAlt },
+      bodyStyles: { fillColor: CM.white },
+      didParseCell(data) {
+        const isLastRow = data.row.index === bodyRows.length - 1;
+        if (data.section === 'body' && isLastRow) {
+          data.cell.styles.fillColor = CM.mid;
+          data.cell.styles.textColor = CM.white;
+          data.cell.styles.fontStyle = 'bold';
+        }
+        if (data.section === 'body' && data.column.index === totalColIdx) {
+          const val = Number(data.cell.raw);
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = Number.isFinite(val) && val <= 5 ? CM.danger : CM.mid;
+          data.cell.styles.textColor = CM.white;
+        } else if (data.section === 'body' && data.column.index > 0 && data.column.index < totalColIdx) {
+          const val = Number(data.cell.raw);
+          if (val > 0) {
+            data.cell.styles.textColor = CM.mid;
+            data.cell.styles.fontStyle = 'bold';
+          } else {
+            data.cell.styles.textColor = [195, 215, 205];
+            data.cell.raw = '—';
+            data.cell.text = ['—'];
+          }
+        }
+      },
+      didDrawPage(data) {
+        doc.setFillColor(...CM.dark);
+        doc.rect(0, H - 9, W, 9, 'F');
+        doc.setFillColor(...CM.mid);
+        doc.rect(0, H - 9, W, 1, 'F');
+        doc.setTextColor(...CM.pale);
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Chip Mong Bank  —  LOS Dashboard', 8, H - 3);
+        doc.text(`Page ${data.pageNumber}  |  CONFIDENTIAL`, W / 2, H - 3, { align: 'center' });
+        doc.text(new Date().toLocaleDateString('en-US', { dateStyle: 'medium' }), W - 8, H - 3, { align: 'right' });
+      },
+      margin: { left: 8, right: 8, bottom: 13 },
+    });
+    if (inactiveBranches.length > 0) {
+      const pageCount = doc.internal.getNumberOfPages();
+      doc.setPage(pageCount);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6.5);
+      doc.setTextColor(...CM.danger);
+      const note = `Inactive branches removed from table: ${inactiveBranches.join(', ')}`;
+      const noteLines = doc.splitTextToSize(note, W - 16);
+      const lineHeight = 3.1;
+      const startY = Math.max(H - 14 - (noteLines.length - 1) * lineHeight, 186);
+      doc.text(noteLines, 8, startY);
+    }
+    const ds = `${(dateFrom || 'all').replace(/-/g, '')}to${(dateTo || 'all').replace(/-/g, '')}`;
+    doc.save(`LOS_Branch_LOSDays_${ds}.pdf`);
   }
 
   return (
@@ -499,9 +721,19 @@ export default function ExportPdfModal({ cases, onClose }) {
 
         {/* ── Body ── */}
         <div className="pdf-modal-body">
+          <div style={{ marginBottom: 12 }}>
+            <label htmlFor="pdf-report-type" style={{ fontWeight: 500, marginRight: 8 }}>Report Type:</label>
+            <select id="pdf-report-type" value={reportType} onChange={e => setReportType(e.target.value)}>
+              <option value="workflow">Workflow Stages</option>
+              <option value="losdays">LOS Days</option>
+            </select>
+          </div>
           <p className="pdf-modal-desc">
-            Generates a <strong>landscape A4 PDF</strong> with all branches as rows and each
-            workflow stage as columns, showing case counts for the selected application date range.
+            {reportType === 'workflow' ? (
+              <>Generates a <strong>landscape A4 PDF</strong> with all branches as rows and each workflow stage as columns, showing case counts for the selected application date range.</>
+            ) : (
+              <>Generates a <strong>landscape A4 PDF</strong> with all branches as rows and LOS Days buckets as columns, showing active cases by LOS days in each range.</>
+            )}
           </p>
 
           {/* Date pickers */}
@@ -562,16 +794,20 @@ export default function ExportPdfModal({ cases, onClose }) {
                 <thead>
                   <tr>
                     <th className="pdf-th-branch">Branch</th>
-                    {REPORT_STEPS.map(s => (
-                      <th key={s.id} title={s.fullName}>{s.label}</th>
-                    ))}
+                    {reportType === 'workflow'
+                      ? REPORT_STEPS.map(s => (
+                          <th key={s.id} title={s.fullName}>{s.label}</th>
+                        ))
+                      : LOS_BUCKETS.map(b => (
+                          <th key={b.id}>{b.label}</th>
+                        ))}
                     <th className="pdf-th-total">Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   {branches.length === 0 ? (
                     <tr>
-                      <td colSpan={REPORT_STEPS.length + 2} className="pdf-empty-cell">
+                      <td colSpan={(reportType === 'workflow' ? REPORT_STEPS.length : LOS_BUCKETS.length) + 2} className="pdf-empty-cell">
                         No data in selected date range
                       </td>
                     </tr>
@@ -581,14 +817,23 @@ export default function ExportPdfModal({ cases, onClose }) {
                       return (
                         <tr key={branch}>
                           <td className="pdf-td-branch">{branch}</td>
-                          {REPORT_STEPS.map(s => {
-                            const v = matrix[branch]?.[s.id] ?? 0;
-                            return (
-                              <td key={s.id} className={v > 0 ? 'pdf-td-pos' : 'pdf-td-zero'}>
-                                {v > 0 ? v : '—'}
-                              </td>
-                            );
-                          })}
+                          {reportType === 'workflow'
+                            ? REPORT_STEPS.map(s => {
+                                const v = matrix[branch]?.[s.id] ?? 0;
+                                return (
+                                  <td key={s.id} className={v > 0 ? 'pdf-td-pos' : 'pdf-td-zero'}>
+                                    {v > 0 ? v : '—'}
+                                  </td>
+                                );
+                              })
+                            : LOS_BUCKETS.map(b => {
+                                const v = matrix[branch]?.[b.id] ?? 0;
+                                return (
+                                  <td key={b.id} className={v > 0 ? 'pdf-td-pos' : 'pdf-td-zero'}>
+                                    {v > 0 ? v : '—'}
+                                  </td>
+                                );
+                              })}
                           <td className={rowTotal <= 5 ? 'pdf-td-rowtotal pdf-td-rowtotal-low' : 'pdf-td-rowtotal'}>{rowTotal}</td>
                         </tr>
                       );
