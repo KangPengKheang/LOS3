@@ -888,8 +888,8 @@ export default function ExportPdfModal({ cases, onClose }) {
                       ? REPORT_STEPS.map(s => (
                           <th key={s.id} title={s.fullName}>{s.label}</th>
                         ))
-                      : LOS_BUCKETS.map(b => (
-                          <th key={b.id}>{b.label}</th>
+                      : LOS_DAYS_RANGES.map((b, idx) => (
+                          <th key={idx}>{b.label}</th>
                         ))}
                     <th className="pdf-th-total">Total</th>
                   </tr>
@@ -897,7 +897,7 @@ export default function ExportPdfModal({ cases, onClose }) {
                 <tbody>
                   {branches.length === 0 ? (
                     <tr>
-                      <td colSpan={(reportType === 'workflow' ? REPORT_STEPS.length : LOS_BUCKETS.length) + 2} className="pdf-empty-cell">
+                      <td colSpan={(reportType === 'workflow' ? REPORT_STEPS.length : LOS_DAYS_RANGES.length) + 2} className="pdf-empty-cell">
                         No data in selected date range
                       </td>
                     </tr>
@@ -916,10 +916,10 @@ export default function ExportPdfModal({ cases, onClose }) {
                                   </td>
                                 );
                               })
-                            : LOS_BUCKETS.map(b => {
-                                const v = matrix[branch]?.[b.id] ?? 0;
+                            : LOS_DAYS_RANGES.map((b, idx) => {
+                                const v = matrix[branch]?.[idx] ?? 0;
                                 return (
-                                  <td key={b.id} className={v > 0 ? 'pdf-td-pos' : 'pdf-td-zero'}>
+                                  <td key={idx} className={v > 0 ? 'pdf-td-pos' : 'pdf-td-zero'}>
                                     {v > 0 ? v : '—'}
                                   </td>
                                 );
