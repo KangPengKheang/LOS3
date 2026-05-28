@@ -2,6 +2,7 @@
 import React from 'react';
 import Select from 'react-select';
 
+export default function SearchableSelect({ value, onChange, options, label }) {
   // Support both array of strings and array of {value, label}
   let selectOptions = options.map(option =>
     typeof option === 'string' ? { value: option, label: option } : option
