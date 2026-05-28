@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { X, FileDown, Calendar, Loader2 } from 'lucide-react';
 import { statusMatches } from '../utils/statusUtils.js';
-import { parseDate, getLosDays } from '../utils/dateUtils.js';
-import { LOS_BUCKETS, getLosBucket } from '../utils/losBuckets.js';
+import { parseDate } from '../utils/dateUtils.js';
 import { FLOW_STEPS, SPECIAL_STEPS } from './WorkflowTracker.jsx';
 import { BRANCH_MASTER_LIST } from '../data/branchMasterList.js';
 import chipMongBankLogo from '../assets/chip-mong-bank-logo.png.jpg';
@@ -449,24 +448,53 @@ export default function ExportPdfModal({ cases, onClose }) {
 
 
   // --- Matrix and totals for both report types ---
+  // --- LOS Days logic ---
+  const LOS_DAYS_RANGES = [
+    { label: 'Less Than 10', min: 0, max: 9 },
+    { label: '10 - 20', min: 10, max: 20 },
+    { label: '20 - 50', min: 21, max: 50 },
+    { label: '50 - 100', min: 51, max: 100 },
+    { label: 'More than 100', min: 101, max: Infinity },
+  ];
+  const ACTIVE_STATUSES = [
+    ...FLOW_STEPS.flatMap(s => s.statuses.map(st => st.toLowerCase()))
+  ];
+  const SPECIAL_STATUSES = ['returned', 'cancelled', 'rejected', 'returned to rm', 'cancel', 'reject'];
+  function isActiveStatus(status) {
+    if (!status) return false;
+    const s = String(status).toLowerCase();
+    return ACTIVE_STATUSES.includes(s) && !SPECIAL_STATUSES.includes(s);
+  }
+  function getLosDaysValue(row, refDate) {
+    const appDate = parseDate(row.APPLICATION_DATE || row.ISSUE_DATE || row.REPORT_DATE || row.CREATED_AT);
+    if (!appDate) return 0;
+    return Math.floor((refDate - appDate) / (1000 * 60 * 60 * 24));
+  }
   const matrix = useMemo(() => {
     if (reportType === 'workflow') return buildMatrix(filtered, branches);
-    // LOS Days matrix
+    // LOS Days matrix: count all cases that are active (not special) as of end of selected range
     const branchSet = new Set(branches);
     const counts = {};
     branches.forEach(b => {
-      counts[b] = {};
-      LOS_BUCKETS.forEach(bucket => { counts[b][bucket.id] = 0; });
+      counts[b] = LOS_DAYS_RANGES.map(() => 0);
     });
-    filtered.forEach(row => {
+    // Use end of range (or today) as reference
+    const to = dateTo ? parseDate(dateTo) : new Date();
+    cases.forEach(row => {
       const branch = normalizeBranchName(row.BRANCH_NAME);
       if (!branchSet.has(branch)) return;
-      const los = getLosDays(row);
-      const bucket = getLosBucket(los);
-      counts[branch][bucket]++;
+      const status = String(row.STATUS || '').toLowerCase();
+      if (!isActiveStatus(status)) return;
+      const appDate = parseDate(row.APPLICATION_DATE || row.ISSUE_DATE || row.REPORT_DATE || row.CREATED_AT);
+      if (!appDate) return;
+      // Only count if LOS was created before or on the end of the range
+      if (appDate > to) return;
+      const los = getLosDaysValue(row, to);
+      const idx = LOS_DAYS_RANGES.findIndex(r => los >= r.min && los <= r.max);
+      if (idx !== -1) counts[branch][idx]++;
     });
     return counts;
-  }, [filtered, branches, reportType]);
+  }, [filtered, branches, reportType, cases, dateTo]);
 
   const branchCaseTotals = useMemo(() => {
     const totals = {};
