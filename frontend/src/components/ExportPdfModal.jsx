@@ -668,9 +668,16 @@ export default function ExportPdfModal({ cases, onClose }) {
             data.cell.styles.textColor = CM.mid;
             data.cell.styles.fontStyle = 'bold';
           } else {
-            data.cell.styles.textColor = [195, 215, 205];
-            data.cell.raw = '—';
-            data.cell.text = ['—'];
+            // Show faint 0 for empty cells in LOS Days, dash for workflow
+            if (reportType === 'losdays') {
+              data.cell.styles.textColor = [210, 232, 218]; // very faint green
+              data.cell.raw = '0';
+              data.cell.text = ['0'];
+            } else {
+              data.cell.styles.textColor = [195, 215, 205];
+              data.cell.raw = '—';
+              data.cell.text = ['—'];
+            }
           }
         }
       },
