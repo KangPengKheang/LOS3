@@ -434,15 +434,6 @@ export default function ExportPdfModal({ cases, onClose }) {
     { label: '50 - 100', min: 51, max: 100 },
     { label: 'More than 100', min: 101, max: Infinity },
   ];
-  const ACTIVE_STATUSES = [
-    ...FLOW_STEPS.flatMap(s => s.statuses.map(st => st.toLowerCase()))
-  ];
-  const SPECIAL_STATUSES = ['returned', 'cancelled', 'rejected', 'returned to rm', 'cancel', 'reject'];
-  function isActiveStatus(status) {
-    if (!status) return false;
-    const s = String(status).toLowerCase();
-    return ACTIVE_STATUSES.includes(s) && !SPECIAL_STATUSES.includes(s);
-  }
   function getLosDaysValue(row, refDate) {
     const appDate = parseDate(row.APPLICATION_DATE || row.ISSUE_DATE || row.REPORT_DATE || row.CREATED_AT);
     if (!appDate) return 0;
@@ -450,7 +441,7 @@ export default function ExportPdfModal({ cases, onClose }) {
   }
   const matrix = useMemo(() => {
     if (reportType === 'workflow') return buildMatrix(filtered, branches);
-    // LOS Days matrix: count active, reportable cases as of the selected end date.
+    // LOS Days matrix: bucket every reportable case as of the selected end date.
     const branchSet = new Set(branches);
     const counts = {};
     branches.forEach(b => {
@@ -461,8 +452,6 @@ export default function ExportPdfModal({ cases, onClose }) {
     filtered.forEach(row => {
       const branch = normalizeBranchName(row.BRANCH_NAME);
       if (!branchSet.has(branch)) return;
-      const status = String(row.STATUS || '').toLowerCase();
-      if (!isActiveStatus(status)) return;
       const appDate = parseDate(row.APPLICATION_DATE || row.ISSUE_DATE || row.REPORT_DATE || row.CREATED_AT);
       if (!appDate) return;
       // Only count if LOS was created before or on the end of the range
@@ -751,7 +740,7 @@ export default function ExportPdfModal({ cases, onClose }) {
             {reportType === 'workflow' ? (
               <>Generates a <strong>landscape A4 PDF</strong> with all branches as rows and each workflow stage as columns, showing case counts for the selected application date range.</>
             ) : (
-              <>Generates a <strong>landscape A4 PDF</strong> with all branches as rows and LOS Days buckets as columns, showing active cases by LOS days in each range.</>
+              <>Generates a <strong>landscape A4 PDF</strong> with all branches as rows and LOS Days buckets as columns, showing reportable cases by LOS days in each range.</>
             )}
           </p>
 
