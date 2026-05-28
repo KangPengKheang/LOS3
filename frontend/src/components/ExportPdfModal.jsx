@@ -426,6 +426,7 @@ export default function ExportPdfModal({ cases, onClose }) {
   }, [onClose]);
 
   const filtered = useMemo(() => {
+    if (reportType === 'losdays') return cases;
     if (!dateFrom && !dateTo) return cases;
 
     const from = parseDate(dateFrom);
@@ -440,7 +441,7 @@ export default function ExportPdfModal({ cases, onClose }) {
       if (to && d > to) return false;
       return true;
     });
-  }, [cases, dateFrom, dateTo]);
+  }, [cases, dateFrom, dateTo, reportType]);
 
   const { branches, inactiveBranches } = useMemo(() => (
     buildOrderedBranches(filtered)
@@ -802,32 +803,34 @@ export default function ExportPdfModal({ cases, onClose }) {
             )}
           </p>
 
-          {/* Date pickers */}
-          <div className="pdf-date-row">
-            <div className="pdf-date-field">
-              <label htmlFor="pdf-from"><Calendar size={13} /> Application Date From</label>
-              <input
-                id="pdf-from"
-                type="date"
-                value={dateFrom}
-                min={bounds.min || undefined}
-                max={dateTo || bounds.max || undefined}
-                onChange={e => setDateFrom(e.target.value)}
-              />
+          {/* Date pickers only for Workflow report */}
+          {reportType === 'workflow' && (
+            <div className="pdf-date-row">
+              <div className="pdf-date-field">
+                <label htmlFor="pdf-from"><Calendar size={13} /> Application Date From</label>
+                <input
+                  id="pdf-from"
+                  type="date"
+                  value={dateFrom}
+                  min={bounds.min || undefined}
+                  max={dateTo || bounds.max || undefined}
+                  onChange={e => setDateFrom(e.target.value)}
+                />
+              </div>
+              <div className="pdf-date-arrow">→</div>
+              <div className="pdf-date-field">
+                <label htmlFor="pdf-to"><Calendar size={13} /> To</label>
+                <input
+                  id="pdf-to"
+                  type="date"
+                  value={dateTo}
+                  min={dateFrom || bounds.min || undefined}
+                  max={bounds.max || undefined}
+                  onChange={e => setDateTo(e.target.value)}
+                />
+              </div>
             </div>
-            <div className="pdf-date-arrow">→</div>
-            <div className="pdf-date-field">
-              <label htmlFor="pdf-to"><Calendar size={13} /> To</label>
-              <input
-                id="pdf-to"
-                type="date"
-                value={dateTo}
-                min={dateFrom || bounds.min || undefined}
-                max={bounds.max || undefined}
-                onChange={e => setDateTo(e.target.value)}
-              />
-            </div>
-          </div>
+          )}
 
           {/* KPI pills */}
           <div className="pdf-kpi-row">
