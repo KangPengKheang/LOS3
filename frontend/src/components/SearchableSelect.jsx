@@ -16,6 +16,8 @@ export default function SearchableSelect({ value, onChange, options, label }) {
       placeholder={label}
       isClearable={false}
       isSearchable={true}
+      menuPortalTarget={null}
+      menuPosition="fixed"
       styles={{
         option: (provided, state) => ({
           ...provided,
