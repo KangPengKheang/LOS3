@@ -1,15 +1,6 @@
-import React from 'react';
 
-function Select({ value, onChange, options, label }) {
-  return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className="select-input" aria-label={label}>
-      <option value="All">{label}: All</option>
-      {options.map((option) => (
-        <option key={option} value={option}>{option}</option>
-      ))}
-    </select>
-  );
-}
+import React from 'react';
+import SearchableSelect from './SearchableSelect.jsx';
 
 export default function FilterBar({ filters, setFilters, branches, rms, products, statuses, onExport }) {
   return (
@@ -20,20 +11,16 @@ export default function FilterBar({ filters, setFilters, branches, rms, products
         value={filters.search}
         onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
       />
-      <Select label="Status" value={filters.status} onChange={(value) => setFilters((prev) => ({ ...prev, status: value }))} options={statuses} />
-      <Select label="Branch" value={filters.branch} onChange={(value) => setFilters((prev) => ({ ...prev, branch: value }))} options={branches} />
-      <Select label="RM" value={filters.rm} onChange={(value) => setFilters((prev) => ({ ...prev, rm: value }))} options={rms} />
-      <Select label="Product" value={filters.product} onChange={(value) => setFilters((prev) => ({ ...prev, product: value }))} options={products} />
-      <select
-        className="select-input"
+      <SearchableSelect label="Status" value={filters.status} onChange={(value) => setFilters((prev) => ({ ...prev, status: value }))} options={statuses} />
+      <SearchableSelect label="Branch" value={filters.branch} onChange={(value) => setFilters((prev) => ({ ...prev, branch: value }))} options={branches} />
+      <SearchableSelect label="RM" value={filters.rm} onChange={(value) => setFilters((prev) => ({ ...prev, rm: value }))} options={rms} />
+      <SearchableSelect label="Product" value={filters.product} onChange={(value) => setFilters((prev) => ({ ...prev, product: value }))} options={products} />
+      <SearchableSelect
+        label="LOS Days"
         value={filters.losSort}
-        onChange={(e) => setFilters((prev) => ({ ...prev, losSort: e.target.value }))}
-        aria-label="Sort LOS Days"
-      >
-        <option value="default">LOS Days: Default</option>
-        <option value="asc">LOS Days: Lowest to Highest</option>
-        <option value="desc">LOS Days: Highest to Lowest</option>
-      </select>
+        onChange={(value) => setFilters((prev) => ({ ...prev, losSort: value }))}
+        options={["default", "asc", "desc"]}
+      />
       <button className="export-btn" onClick={onExport}>Export CSV</button>
     </div>
   );
