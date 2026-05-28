@@ -19,7 +19,11 @@ export default function FilterBar({ filters, setFilters, branches, rms, products
         label="LOS Days"
         value={filters.losSort}
         onChange={(value) => setFilters((prev) => ({ ...prev, losSort: value }))}
-        options={["default", "asc", "desc"]}
+        options={[
+          { value: "default", label: "LOS Days: Default" },
+          { value: "asc", label: "LOS Days: Ascending" },
+          { value: "desc", label: "LOS Days: Descending" }
+        ]}
       />
       <button className="export-btn" onClick={onExport}>Export CSV</button>
     </div>
