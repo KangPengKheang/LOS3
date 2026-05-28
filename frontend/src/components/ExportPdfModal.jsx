@@ -470,9 +470,23 @@ export default function ExportPdfModal({ cases, onClose }) {
     if (!appDate) return 0;
     return Math.floor((refDate - appDate) / (1000 * 60 * 60 * 24));
   }
+  const EXCLUDED_PURPOSES = [
+    'od',
+    'dd',
+    'credit card',
+    'credit card against td',
+    'other request',
+    'restructure loan',
+  ];
+  function isExcludedPurpose(purpose) {
+    if (!purpose) return false;
+    const p = String(purpose).toLowerCase().replace(/\s+/g, ' ');
+    return EXCLUDED_PURPOSES.some(ex => p.includes(ex));
+  }
+
   const matrix = useMemo(() => {
     if (reportType === 'workflow') return buildMatrix(filtered, branches);
-    // LOS Days matrix: count all cases that are active (not special) as of end of selected range
+    // LOS Days matrix: count all cases that are active (not special) as of end of selected range, and not excluded by purpose
     const branchSet = new Set(branches);
     const counts = {};
     branches.forEach(b => {
@@ -481,6 +495,7 @@ export default function ExportPdfModal({ cases, onClose }) {
     // Use end of range (or today) as reference
     const to = dateTo ? parseDate(dateTo) : new Date();
     cases.forEach(row => {
+      if (isExcludedPurpose(row.PURPOSE)) return;
       const branch = normalizeBranchName(row.BRANCH_NAME);
       if (!branchSet.has(branch)) return;
       const status = String(row.STATUS || '').toLowerCase();
