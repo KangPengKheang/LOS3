@@ -12,11 +12,8 @@ export default function SearchableSelect({ value, onChange, options, label }) {
     selectOptions.unshift({ value: 'All', label: `${label}: All` });
   }
 
-  // Custom filter to keep all options visible, but faint if not matching
-  const customFilterOption = (option, input) => {
-    if (!input) return true;
-    return option.label.toLowerCase().includes(input.toLowerCase());
-  };
+  // Custom filter: always show all options
+  const customFilterOption = () => true;
 
   return (
     <Select
@@ -27,19 +24,17 @@ export default function SearchableSelect({ value, onChange, options, label }) {
       placeholder={label}
       isClearable={false}
       isSearchable={true}
-      menuPortalTarget={null}
-      menuPosition="fixed"
       filterOption={customFilterOption}
       styles={{
-        option: (provided, state) => ({
-          ...provided,
-          opacity:
-            state.isFocused || state.isSelected
-              ? 1
-              : state.data.label.toLowerCase().includes(state.selectProps.inputValue?.toLowerCase() || '')
-                ? 1
-                : 0.4,
-        }),
+        option: (provided, state) => {
+          const input = state.selectProps.inputValue?.toLowerCase() || '';
+          const match = state.data.label.toLowerCase().includes(input);
+          return {
+            ...provided,
+            opacity: state.isFocused || state.isSelected ? 1 : match ? 1 : 0.4,
+            display: 'block',
+          };
+        },
       }}
       aria-label={label}
     />
