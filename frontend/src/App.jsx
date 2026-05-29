@@ -282,6 +282,7 @@ export default function App() {
   return (
     <div className="layout-shell">
       <main className="app-shell">
+
         <header className="topbar">
           <div className="brand-block">
             <div className="logo-placeholder">
@@ -289,7 +290,7 @@ export default function App() {
             </div>
             <div>
               <h1>LOS Executive Command Center</h1>
-              <p>Enterprise-level LOS oversight, trend intelligence, and end-to-end workflow excellence</p>
+              <p className="hide-mobile">Enterprise-level LOS oversight, trend intelligence, and end-to-end workflow excellence</p>
             </div>
           </div>
           <div className="topbar-actions">
@@ -299,15 +300,15 @@ export default function App() {
               onClick={() => setShowPdfModal(true)}
             >
               <FileDown size={17} />
-              Export PDF
+              <span className="hide-mobile">Export PDF</span>
             </button>
-            <button className="icon-btn" type="button" aria-label="Calendar"><CalendarDays size={20} /></button>
-            <button className="icon-btn" type="button" aria-label="Notifications"><Bell size={20} /></button>
+            <button className="icon-btn hide-mobile" type="button" aria-label="Calendar"><CalendarDays size={20} /></button>
+            <button className="icon-btn hide-mobile" type="button" aria-label="Notifications"><Bell size={20} /></button>
             <div className="avatar-chip">MS</div>
           </div>
         </header>
 
-        <div className="source-pill"><Database size={16} /> Data source: {source === 'sheet' ? 'Google Sheet' : 'Sample Data'}</div>
+        <div className="source-pill hide-mobile"><Database size={16} /> Data source: {source === 'sheet' ? 'Google Sheet' : 'Sample Data'}</div>
 
         {toast ? (
           <div className="toast-success">
@@ -342,8 +343,9 @@ export default function App() {
             aria-selected={activeView === 'case'}
             className={`view-switch-btn${activeView === 'case' ? ' view-switch-btn--active' : ''}`}
             onClick={() => setActiveView('case')}
+            style={{ fontSize: '1em', padding: '8px 10px' }}
           >
-            Case Tracking Table
+            Case Table
           </button>
           <button
             type="button"
@@ -351,8 +353,9 @@ export default function App() {
             aria-selected={activeView === 'rm'}
             className={`view-switch-btn${activeView === 'rm' ? ' view-switch-btn--active' : ''}`}
             onClick={() => setActiveView('rm')}
+            style={{ fontSize: '1em', padding: '8px 10px' }}
           >
-            RM Activity Dashboard
+            RM Dashboard
           </button>
         </div>
 
@@ -367,9 +370,10 @@ export default function App() {
           <section className="panel">
             <div className="panel-head">
               <div>
-                <h2>Case Tracking Table</h2>
+                <h2 style={{ fontSize: '1.1em' }}>Case Tracking Table</h2>
               </div>
-              <button className="refresh-btn" onClick={loadData} disabled={loading}><RefreshCw size={16} /> Refresh</button>
+              <button className="refresh-btn hide-mobile" onClick={loadData} disabled={loading}><RefreshCw size={16} /> Refresh</button>
+              <button className="refresh-btn hide-desktop" onClick={loadData} disabled={loading} style={{ fontSize: '1em', padding: '6px 10px' }}><RefreshCw size={16} /></button>
             </div>
 
             <TrendLineChart rows={filtered} branches={branches} />
@@ -377,7 +381,7 @@ export default function App() {
             {loading
               ? <div className="loader">Loading LOS cases...</div>
               : <CaseTable rows={filtered} onSelectCase={setSelectedCase} selectedCase={selectedCase} />}
-            <div className="table-footer">Showing {filtered.length} of {cases.length} cases</div>
+            <div className="table-footer" style={{ fontSize: '0.95em', padding: '6px 0' }}>Showing {filtered.length} of {cases.length} cases</div>
           </section>
         ) : (
           <RmActivityDashboard cases={filtered} onBack={() => setActiveView('case')} />
