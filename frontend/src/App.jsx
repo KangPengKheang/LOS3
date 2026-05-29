@@ -1,4 +1,3 @@
-
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
@@ -9,9 +8,6 @@ import {
   FileDown,
   RefreshCw,
 } from 'lucide-react';
-import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
-import Button from '@mui/material/Button';
 import FilterBar from './components/FilterBar.jsx';
 import CaseTable from './components/CaseTable.jsx';
 import TrendLineChart from './components/TrendLineChart.jsx';
@@ -88,40 +84,6 @@ export default function App() {
     losSort: 'default',
   });
 
-  // Helper: filter function for searching cases
-  function baseFilter(row, search) {
-    if (!search) return true;
-    const values = [
-      row.APPLICATION_NUMBER_ID,
-      row.CUSTOMER_NAME,
-      row.RM_NAME || row.RM_Name || row.rm_name,
-      row.BRANCH_NAME,
-      row.PRODUCTS,
-      row.STATUS,
-      row.PURPOSE,
-      row.FOLLOW_UP_REMARK,
-      row.REMARK,
-    ];
-    return values.some(val => String(val || '').toLowerCase().includes(search));
-  }
-
-  // Memoized filtered cases
-  const filtered = useMemo(() => {
-    const search = filters.search.trim().toLowerCase();
-    return cases.filter(row =>
-      baseFilter(row, search)
-      && (filters.status === 'All' || row.STATUS === filters.status)
-      && (filters.branch === 'All' || row.BRANCH_NAME === filters.branch)
-      && (filters.rm === 'All' || getRmName(row) === filters.rm)
-      && (filters.product === 'All' || row.PRODUCTS === filters.product)
-    );
-  }, [cases, filters]);
-
-  // Memoized unique lists for filter dropdowns
-  const branches = useMemo(() => unique(cases.map(row => row.BRANCH_NAME)), [cases]);
-  const products = useMemo(() => unique(cases.map(row => row.PRODUCTS)), [cases]);
-  const rms = useMemo(() => unique(cases.map(getRmName)), [cases]);
-
   async function loadData() {
     try {
       setLoading(true);
@@ -138,7 +100,96 @@ export default function App() {
     }
   }
 
-  // ...existing code...
+  useEffect(() => { loadData(); }, []);
+
+  useEffect(() => {
+    if (!toast) return undefined;
+    const timer = window.setTimeout(() => setToast(''), 3500);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  const filtered = useMemo(() => {
+    const search = filters.search.trim().toLowerCase();
+    const rows = cases.filter(row => {
+      const searchable = [
+        row.APPLICATION_NUMBER_ID,
+        row.CUSTOMER_NAME,
+        row.BRANCH_NAME,
+        row.RM_NAME,
+        row.APPLICATION_SOURCE,
+        row.PRODUCTS,
+        row.STATUS,
+        getRemarkText(row),
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      return (!search || searchable.includes(search))
+        && (filters.status === 'All' || statusMatches(row.STATUS, [filters.status]))
+        && (filters.branch === 'All' || row.BRANCH_NAME === filters.branch)
+        && (filters.rm === 'All' || getRmName(row) === filters.rm)
+        && (filters.product === 'All' || row.PRODUCTS === filters.product);
+    });
+
+    if (filters.losSort === 'asc') {
+      return [...rows].sort((a, b) => getLosDays(a) - getLosDays(b));
+    }
+
+    if (filters.losSort === 'desc') {
+      return [...rows].sort((a, b) => getLosDays(b) - getLosDays(a));
+    }
+
+    return rows;
+  }, [cases, filters]);
+
+  // Cascading filter options — each set of options is derived from cases
+  // filtered by all OTHER active filters, so dropdowns only show valid choices.
+  const baseFilter = (row, search) => {
+    const searchable = [
+      row.APPLICATION_NUMBER_ID,
+      row.CUSTOMER_NAME,
+      row.BRANCH_NAME,
+      row.RM_NAME,
+      row.APPLICATION_SOURCE,
+      row.PRODUCTS,
+      row.STATUS,
+      getRemarkText(row),
+    ].join(' ').toLowerCase();
+    return !search || searchable.includes(search);
+  };
+
+  const branches = useMemo(() => {
+    const search = filters.search.trim().toLowerCase();
+    const pool = cases.filter(row =>
+      baseFilter(row, search)
+      && (filters.status === 'All' || statusMatches(row.STATUS, [filters.status]))
+      && (filters.rm === 'All' || getRmName(row) === filters.rm)
+      && (filters.product === 'All' || row.PRODUCTS === filters.product)
+    );
+    return unique(pool.map(row => row.BRANCH_NAME));
+  }, [cases, filters.search, filters.status, filters.rm, filters.product]);
+
+  const products = useMemo(() => {
+    const search = filters.search.trim().toLowerCase();
+    const pool = cases.filter(row =>
+      baseFilter(row, search)
+      && (filters.status === 'All' || statusMatches(row.STATUS, [filters.status]))
+      && (filters.branch === 'All' || row.BRANCH_NAME === filters.branch)
+      && (filters.rm === 'All' || getRmName(row) === filters.rm)
+    );
+    return unique(pool.map(row => row.PRODUCTS));
+  }, [cases, filters.search, filters.status, filters.branch, filters.rm]);
+
+  const rms = useMemo(() => {
+    const search = filters.search.trim().toLowerCase();
+    const pool = cases.filter(row =>
+      baseFilter(row, search)
+      && (filters.status === 'All' || statusMatches(row.STATUS, [filters.status]))
+      && (filters.branch === 'All' || row.BRANCH_NAME === filters.branch)
+      && (filters.product === 'All' || row.PRODUCTS === filters.product)
+    );
+    return unique(pool.map(getRmName));
+  }, [cases, filters.search, filters.status, filters.branch, filters.product]);
 
   const statuses = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
@@ -231,34 +282,32 @@ export default function App() {
   return (
     <div className="layout-shell">
       <main className="app-shell">
-
         <header className="topbar">
-          <div className="brand-block" style={{ width: '100%' }}>
-            <div className="logo-placeholder hide-mobile" style={{ marginBottom: 0 }}>
+          <div className="brand-block">
+            <div className="logo-placeholder">
               <img src={chipMongBankLogo} alt="Chip Mong Bank" className="brand-logo" />
             </div>
-            <div style={{ width: '100%' }}>
-              <h1 style={{ fontSize: '1.2em', marginBottom: 4 }}>LOS Command Center</h1>
-              <p className="hide-mobile" style={{ fontSize: '1em', margin: 0 }}>Enterprise-level LOS oversight, trend intelligence, and end-to-end workflow excellence</p>
+            <div>
+              <h1>LOS Executive Command Center</h1>
+              <p>Enterprise-level LOS oversight, trend intelligence, and end-to-end workflow excellence</p>
             </div>
           </div>
-          <div className="topbar-actions" style={{ width: '100%', justifyContent: 'flex-end' }}>
+          <div className="topbar-actions">
             <button
               className="export-pdf-btn"
               type="button"
               onClick={() => setShowPdfModal(true)}
-              style={{ fontSize: '1em', padding: '8px 10px', width: '100%' }}
             >
               <FileDown size={17} />
-              <span className="hide-mobile">Export PDF</span>
+              Export PDF
             </button>
-            <button className="icon-btn hide-mobile" type="button" aria-label="Calendar"><CalendarDays size={20} /></button>
-            <button className="icon-btn hide-mobile" type="button" aria-label="Notifications"><Bell size={20} /></button>
-            <div className="avatar-chip hide-mobile">MS</div>
+            <button className="icon-btn" type="button" aria-label="Calendar"><CalendarDays size={20} /></button>
+            <button className="icon-btn" type="button" aria-label="Notifications"><Bell size={20} /></button>
+            <div className="avatar-chip">MS</div>
           </div>
         </header>
 
-        <div className="source-pill hide-mobile"><Database size={16} /> Data source: {source === 'sheet' ? 'Google Sheet' : 'Sample Data'}</div>
+        <div className="source-pill"><Database size={16} /> Data source: {source === 'sheet' ? 'Google Sheet' : 'Sample Data'}</div>
 
         {toast ? (
           <div className="toast-success">
@@ -276,8 +325,7 @@ export default function App() {
           </div>
         ) : null}
 
-        <div style={{ width: '100%' }}>
-          <FilterBar
+        <FilterBar
             filters={filters}
             setFilters={setFilters}
             branches={branches}
@@ -286,18 +334,16 @@ export default function App() {
             statuses={statuses}
             onExport={() => exportCsv(filtered)}
           />
-        </div>
 
-        <div className="view-switcher responsive-grid" role="tablist" aria-label="Dashboard view switcher" style={{ margin: '10px 0' }}>
+        <div className="view-switcher" role="tablist" aria-label="Dashboard view switcher">
           <button
             type="button"
             role="tab"
             aria-selected={activeView === 'case'}
             className={`view-switch-btn${activeView === 'case' ? ' view-switch-btn--active' : ''}`}
             onClick={() => setActiveView('case')}
-            style={{ fontSize: '1em', padding: '10px', width: '100%' }}
           >
-            Case Table
+            Case Tracking Table
           </button>
           <button
             type="button"
@@ -305,9 +351,8 @@ export default function App() {
             aria-selected={activeView === 'rm'}
             className={`view-switch-btn${activeView === 'rm' ? ' view-switch-btn--active' : ''}`}
             onClick={() => setActiveView('rm')}
-            style={{ fontSize: '1em', padding: '10px', width: '100%' }}
           >
-            RM Dashboard
+            RM Activity Dashboard
           </button>
         </div>
 
@@ -319,27 +364,20 @@ export default function App() {
         />
 
         {activeView === 'case' ? (
-          <section className="panel" style={{ width: '100%', padding: '0 0 10px 0' }}>
-            <div className="panel-head responsive-grid" style={{ alignItems: 'center' }}>
+          <section className="panel">
+            <div className="panel-head">
               <div>
-                <h2 style={{ fontSize: '1.1em', margin: 0 }}>Case Tracking Table</h2>
+                <h2>Case Tracking Table</h2>
               </div>
-              <button className="refresh-btn hide-mobile" onClick={loadData} disabled={loading}><RefreshCw size={16} /> Refresh</button>
-              <button className="refresh-btn hide-desktop" onClick={loadData} disabled={loading} style={{ fontSize: '1em', padding: '6px 10px' }}><RefreshCw size={16} /></button>
+              <button className="refresh-btn" onClick={loadData} disabled={loading}><RefreshCw size={16} /> Refresh</button>
             </div>
 
-            <div style={{ width: '100%', overflowX: 'auto' }}>
-              <div className="hide-mobile">
-                <TrendLineChart rows={filtered} branches={branches} />
-              </div>
-            </div>
+            <TrendLineChart rows={filtered} branches={branches} />
 
-            <div style={{ width: '100%', overflowX: 'auto' }}>
-              {loading
-                ? <div className="loader">Loading LOS cases...</div>
-                : <CaseTable rows={filtered} onSelectCase={setSelectedCase} selectedCase={selectedCase} />}
-            </div>
-            <div className="table-footer hide-mobile" style={{ fontSize: '0.95em', padding: '6px 0', width: '100%' }}>Showing {filtered.length} of {cases.length} cases</div>
+            {loading
+              ? <div className="loader">Loading LOS cases...</div>
+              : <CaseTable rows={filtered} onSelectCase={setSelectedCase} selectedCase={selectedCase} />}
+            <div className="table-footer">Showing {filtered.length} of {cases.length} cases</div>
           </section>
         ) : (
           <RmActivityDashboard cases={filtered} onBack={() => setActiveView('case')} />
