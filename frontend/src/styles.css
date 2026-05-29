@@ -1,4 +1,116 @@
 @media (max-width: 600px) {
+  .responsive-pdf-modal {
+    width: 98vw !important;
+    max-width: 98vw !important;
+    min-width: 0 !important;
+    left: 1vw !important;
+    padding: 0 !important;
+    border-radius: 18px !important;
+    box-shadow: 0 4px 24px 0 rgba(20,99,216,0.10);
+  }
+  .responsive-pdf-modal-header {
+    flex-direction: row;
+    align-items: center;
+    padding: 14px 10px 8px 10px;
+    border-bottom: 1px solid #e6eaf2;
+    background: #f6f9ff;
+    border-radius: 18px 18px 0 0;
+  }
+  .responsive-pdf-modal-title {
+    font-size: 1.08em;
+    font-weight: 700;
+    color: #1463d8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .responsive-pdf-close-btn {
+    background: none;
+    border: none;
+    color: #1463d8;
+    font-size: 1.2em;
+    margin-left: auto;
+    padding: 4px 8px;
+    border-radius: 8px;
+    transition: background 0.2s;
+  }
+  .responsive-pdf-modal-body {
+    padding: 10px 8px 0 8px;
+    background: #fff;
+    border-radius: 0 0 18px 18px;
+  }
+  .responsive-pdf-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+  .responsive-pdf-select {
+    width: 100%;
+    min-width: 0;
+    font-size: 1em;
+    padding: 8px 10px;
+    border-radius: 8px;
+    margin-top: 6px;
+    margin-bottom: 6px;
+  }
+  .responsive-pdf-kpi-row {
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .responsive-pdf-preview-wrap {
+    margin: 0 -8px 0 -8px;
+  }
+  .responsive-pdf-tbl-scroll {
+    overflow-x: auto;
+    border-radius: 10px;
+    background: #f6f9ff;
+    margin-bottom: 10px;
+  }
+  .responsive-pdf-modal-footer {
+    padding: 10px 8px 14px 8px;
+    background: #f6f9ff;
+    border-radius: 0 0 18px 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .responsive-pdf-footer-note {
+    font-size: 0.98em;
+    color: #63708a;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+  .responsive-pdf-footer-actions {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+  }
+  .responsive-pdf-cancel-btn, .responsive-pdf-generate-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    font-size: 1em;
+    padding: 10px 0;
+    border-radius: 8px;
+    font-weight: 600;
+    border: none;
+    box-shadow: 0 1px 4px 0 rgba(20,99,216,0.04);
+    transition: background 0.2s;
+  }
+  .responsive-pdf-cancel-btn {
+    background: #eaf2ff;
+    color: #1463d8;
+  }
+  .responsive-pdf-generate-btn {
+    background: #1463d8;
+    color: #fff;
+  }
+  .responsive-pdf-generate-btn:active {
+    background: #0b4db7;
+  }
+}
+@media (max-width: 600px) {
   body {
     background: #f4f7fb;
   }

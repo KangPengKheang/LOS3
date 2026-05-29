@@ -694,22 +694,22 @@ export default function ExportPdfModal({ cases, onClose }) {
 
   return (
     <div className="pdf-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label="Export PDF Report">
-      <div className="pdf-modal" onClick={e => e.stopPropagation()}>
+      <div className="pdf-modal responsive-pdf-modal" onClick={e => e.stopPropagation()}>
 
         {/* ── Header ── */}
-        <div className="pdf-modal-header">
-          <div className="pdf-modal-title">
+        <div className="pdf-modal-header responsive-pdf-modal-header">
+          <div className="pdf-modal-title responsive-pdf-modal-title">
             <FileDown size={20} />
             <span>Export PDF Report</span>
           </div>
-          <button className="pdf-close-btn" onClick={onClose} aria-label="Close dialog">
+          <button className="pdf-close-btn responsive-pdf-close-btn" onClick={onClose} aria-label="Close dialog">
             <X size={18} />
           </button>
         </div>
 
         {/* ── Body ── */}
-        <div className="pdf-modal-body">
-          <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="pdf-modal-body responsive-pdf-modal-body">
+          <div className="responsive-pdf-row" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <label htmlFor="pdf-report-type" style={{ fontWeight: 600, color: `rgb(${CM.green.join(',')})`, fontSize: 15, letterSpacing: 0.2, marginRight: 8 }}>
               Report Type:
             </label>
@@ -717,20 +717,7 @@ export default function ExportPdfModal({ cases, onClose }) {
               id="pdf-report-type"
               value={reportType}
               onChange={e => setReportType(e.target.value)}
-              style={{
-                background: `linear-gradient(90deg, rgb(${CM.pale.join(',')}), rgb(${CM.paleAlt.join(',')}))`,
-                border: `2px solid rgb(${CM.green.join(',')})`,
-                color: `rgb(${CM.dark.join(',')})`,
-                borderRadius: 8,
-                fontWeight: 600,
-                fontSize: 15,
-                padding: '6px 18px',
-                outline: 'none',
-                boxShadow: `0 1px 6px 0 rgba(${CM.green.join(',')},0.08)`,
-                transition: 'border 0.2s',
-                cursor: 'pointer',
-                minWidth: 160,
-              }}
+              className="responsive-pdf-select"
             >
               <option value="workflow">Workflow Stages</option>
               <option value="losdays">LOS Days</option>
@@ -774,7 +761,7 @@ export default function ExportPdfModal({ cases, onClose }) {
           )}
 
           {/* KPI pills */}
-          <div className="pdf-kpi-row">
+          <div className="pdf-kpi-row responsive-pdf-kpi-row">
             <div className="pdf-kpi-item">
               <span className="pdf-kpi-val">{filtered.length}</span>
               <span className="pdf-kpi-lbl">Cases in Range</span>
@@ -794,12 +781,12 @@ export default function ExportPdfModal({ cases, onClose }) {
           </div>
 
           {/* Preview table */}
-          <div className="pdf-preview-wrap">
+          <div className="pdf-preview-wrap responsive-pdf-preview-wrap">
             <div className="pdf-preview-label">
               <span>Data Preview</span>
               <span className="pdf-preview-note">Scroll horizontally to see all columns</span>
             </div>
-            <div className="pdf-tbl-scroll">
+            <div className="pdf-tbl-scroll responsive-pdf-tbl-scroll">
               <table className="pdf-preview-tbl">
                 <thead>
                   <tr>
@@ -869,12 +856,12 @@ export default function ExportPdfModal({ cases, onClose }) {
         </div>
 
         {/* ── Footer ── */}
-        <div className="pdf-modal-footer">
-          <span className="pdf-footer-note">Landscape A4  ·  Chipmong Bank branded</span>
-          <div className="pdf-footer-actions">
-            <button className="pdf-cancel-btn" onClick={onClose}>Cancel</button>
+        <div className="pdf-modal-footer responsive-pdf-modal-footer">
+          <span className="pdf-footer-note responsive-pdf-footer-note">Landscape A4  ·  Chipmong Bank branded</span>
+          <div className="pdf-footer-actions responsive-pdf-footer-actions">
+            <button className="pdf-cancel-btn responsive-pdf-cancel-btn" onClick={onClose}>Cancel</button>
             <button
-              className="pdf-generate-btn"
+              className="pdf-generate-btn responsive-pdf-generate-btn"
               onClick={handleGenerate}
               disabled={generating || branches.length === 0}
             >
