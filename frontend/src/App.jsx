@@ -88,6 +88,40 @@ export default function App() {
     losSort: 'default',
   });
 
+  // Helper: filter function for searching cases
+  function baseFilter(row, search) {
+    if (!search) return true;
+    const values = [
+      row.APPLICATION_NUMBER_ID,
+      row.CUSTOMER_NAME,
+      row.RM_NAME || row.RM_Name || row.rm_name,
+      row.BRANCH_NAME,
+      row.PRODUCTS,
+      row.STATUS,
+      row.PURPOSE,
+      row.FOLLOW_UP_REMARK,
+      row.REMARK,
+    ];
+    return values.some(val => String(val || '').toLowerCase().includes(search));
+  }
+
+  // Memoized filtered cases
+  const filtered = useMemo(() => {
+    const search = filters.search.trim().toLowerCase();
+    return cases.filter(row =>
+      baseFilter(row, search)
+      && (filters.status === 'All' || row.STATUS === filters.status)
+      && (filters.branch === 'All' || row.BRANCH_NAME === filters.branch)
+      && (filters.rm === 'All' || getRmName(row) === filters.rm)
+      && (filters.product === 'All' || row.PRODUCTS === filters.product)
+    );
+  }, [cases, filters]);
+
+  // Memoized unique lists for filter dropdowns
+  const branches = useMemo(() => unique(cases.map(row => row.BRANCH_NAME)), [cases]);
+  const products = useMemo(() => unique(cases.map(row => row.PRODUCTS)), [cases]);
+  const rms = useMemo(() => unique(cases.map(getRmName)), [cases]);
+
   async function loadData() {
     try {
       setLoading(true);
