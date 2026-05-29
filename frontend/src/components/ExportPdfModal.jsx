@@ -1,4 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Button from '@mui/material/Button';
+import Box from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
 import { X, FileDown, Calendar, Loader2 } from 'lucide-react';
 import { statusMatches } from '../utils/statusUtils.js';
 import { parseDate } from '../utils/dateUtils.js';
@@ -693,186 +700,152 @@ export default function ExportPdfModal({ cases, onClose }) {
   }
 
   return (
-    <div className="pdf-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label="Export PDF Report">
-      <div className="pdf-modal responsive-pdf-modal" onClick={e => e.stopPropagation()}>
-
-        {/* ── Header ── */}
-        <div className="pdf-modal-header responsive-pdf-modal-header">
-          <div className="pdf-modal-title responsive-pdf-modal-title">
-            <FileDown size={20} />
-            <span>Export PDF Report</span>
-          </div>
-          <button className="pdf-close-btn responsive-pdf-close-btn" onClick={onClose} aria-label="Close dialog">
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* ── Body ── */}
-        <div className="pdf-modal-body responsive-pdf-modal-body">
-          <div className="responsive-pdf-row" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <label htmlFor="pdf-report-type" style={{ fontWeight: 600, color: `rgb(${CM.green.join(',')})`, fontSize: 15, letterSpacing: 0.2, marginRight: 8 }}>
+    <Dialog open onClose={onClose} fullWidth maxWidth="md" PaperProps={{ sx: { borderRadius: 3, p: 0 } }}>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <FileDown size={22} />
+          Export PDF Report
+        </Box>
+        <Button onClick={onClose} sx={{ minWidth: 0, p: 1 }} color="inherit"><X size={20} /></Button>
+      </DialogTitle>
+      <DialogContent sx={{ p: { xs: 1.5, sm: 3 } }}>
+        <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
+          <Grid item xs={12} sm={4}>
+            <Box component="label" htmlFor="pdf-report-type" sx={{ fontWeight: 600, color: `rgb(${CM.green.join(',')})`, fontSize: 15, letterSpacing: 0.2 }}>
               Report Type:
-            </label>
-            <select
+            </Box>
+          </Grid>
+          <Grid item xs={12} sm={8}>
+            <Box component="select"
               id="pdf-report-type"
               value={reportType}
               onChange={e => setReportType(e.target.value)}
-              className="responsive-pdf-select"
+              sx={{
+                width: '100%',
+                background: `linear-gradient(90deg, rgb(${CM.pale.join(',')}), rgb(${CM.paleAlt.join(',')}))`,
+                border: `2px solid rgb(${CM.green.join(',')})`,
+                color: `rgb(${CM.dark.join(',')})`,
+                borderRadius: 2,
+                fontWeight: 600,
+                fontSize: 15,
+                p: 1.2,
+                outline: 'none',
+                boxShadow: `0 1px 6px 0 rgba(${CM.green.join(',')},0.08)`,
+                transition: 'border 0.2s',
+                cursor: 'pointer',
+                minWidth: 120,
+              }}
+              component="select"
             >
               <option value="workflow">Workflow Stages</option>
               <option value="losdays">LOS Days</option>
-            </select>
-          </div>
-          <p className="pdf-modal-desc">
-            {reportType === 'workflow' ? (
-              <>Generates a <strong>landscape A4 PDF</strong> with all branches as rows and each workflow stage as columns, showing case counts for the selected application date range.</>
-            ) : (
-              <>Generates a <strong>landscape A4 PDF</strong> with all branches as rows and LOS Days buckets as columns, showing reportable cases by LOS days in each range.</>
-            )}
-          </p>
-
-          {/* Date pickers only for Workflow report */}
-          {reportType === 'workflow' && (
-            <div className="pdf-date-row">
-              <div className="pdf-date-field">
-                <label htmlFor="pdf-from"><Calendar size={13} /> Application Date From</label>
-                <input
-                  id="pdf-from"
-                  type="date"
-                  value={dateFrom}
-                  min={bounds.min || undefined}
-                  max={dateTo || bounds.max || undefined}
-                  onChange={e => setDateFrom(e.target.value)}
-                />
-              </div>
-              <div className="pdf-date-arrow">→</div>
-              <div className="pdf-date-field">
-                <label htmlFor="pdf-to"><Calendar size={13} /> To</label>
-                <input
-                  id="pdf-to"
-                  type="date"
-                  value={dateTo}
-                  min={dateFrom || bounds.min || undefined}
-                  max={bounds.max || undefined}
-                  onChange={e => setDateTo(e.target.value)}
-                />
-              </div>
-            </div>
+            </Box>
+          </Grid>
+        </Grid>
+        <Box sx={{ mb: 2, fontSize: 15 }}>
+          {reportType === 'workflow' ? (
+            <>Generates a <strong>landscape A4 PDF</strong> with all branches as rows and each workflow stage as columns, showing case counts for the selected application date range.</>
+          ) : (
+            <>Generates a <strong>landscape A4 PDF</strong> with all branches as rows and LOS Days buckets as columns, showing reportable cases by LOS days in each range.</>
           )}
-
-          {/* KPI pills */}
-          <div className="pdf-kpi-row responsive-pdf-kpi-row">
-            <div className="pdf-kpi-item">
-              <span className="pdf-kpi-val">{filtered.length}</span>
-              <span className="pdf-kpi-lbl">Cases in Range</span>
-            </div>
-            <div className="pdf-kpi-item">
-              <span className="pdf-kpi-val">{branches.length}</span>
-              <span className="pdf-kpi-lbl">Branches</span>
-            </div>
-            <div className="pdf-kpi-item">
-              <span className="pdf-kpi-val">{ALL_STEPS.length}</span>
-              <span className="pdf-kpi-lbl">Workflow Stages</span>
-            </div>
-            <div className="pdf-kpi-item">
-              <span className="pdf-kpi-val">{branches.includes(UNKNOWN_BRANCH_LABEL) ? 'Yes' : 'No'}</span>
-              <span className="pdf-kpi-lbl">Unknown Branch Found</span>
-            </div>
-          </div>
-
-          {/* Preview table */}
-          <div className="pdf-preview-wrap responsive-pdf-preview-wrap">
-            <div className="pdf-preview-label">
-              <span>Data Preview</span>
-              <span className="pdf-preview-note">Scroll horizontally to see all columns</span>
-            </div>
-            <div className="pdf-tbl-scroll responsive-pdf-tbl-scroll">
-              <table className="pdf-preview-tbl">
-                <thead>
-                  <tr>
-                    <th className="pdf-th-branch">Branch</th>
-                    {reportType === 'workflow'
-                      ? REPORT_STEPS.map(s => (
-                          <th key={s.id} title={s.fullName}>{s.label}</th>
-                        ))
-                      : LOS_DAYS_RANGES.map((b, idx) => (
-                          <th key={idx}>{b.label}</th>
-                        ))}
-                    <th className="pdf-th-total">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {branches.length === 0 ? (
-                    <tr>
-                      <td colSpan={(reportType === 'workflow' ? REPORT_STEPS.length : LOS_DAYS_RANGES.length) + 2} className="pdf-empty-cell">
-                        No data in selected date range
-                      </td>
-                    </tr>
-                  ) : (
-                    sortedBranches.map(branch => {
-                      const rowTotal = branchCaseTotals[branch] ?? 0;
-                      return (
-                        <tr key={branch}>
-                          <td className="pdf-td-branch">{branch}</td>
-                          {reportType === 'workflow'
-                            ? REPORT_STEPS.map(s => {
-                                const v = matrix[branch]?.[s.id] ?? 0;
-                                return (
-                                  <td key={s.id} className={v > 0 ? 'pdf-td-pos' : 'pdf-td-zero'}>
-                                    {v > 0 ? v : '—'}
-                                  </td>
-                                );
-                              })
-                            : LOS_DAYS_RANGES.map((b, idx) => {
-                                const v = matrix[branch]?.[idx] ?? 0;
-                                return (
-                                  <td key={idx} className={v > 0 ? 'pdf-td-pos' : 'pdf-td-zero'}>
-                                    {v > 0 ? v : '—'}
-                                  </td>
-                                );
-                              })}
-                          <td className={rowTotal <= 5 ? 'pdf-td-rowtotal pdf-td-rowtotal-low' : 'pdf-td-rowtotal'}>{rowTotal}</td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-                {branches.length > 0 && (
-                  <tfoot>
-                    <tr>
-                      <td className="pdf-tf-label">Total</td>
-                      {colTotals.map((v, i) => (
-                        <td key={i} className={v > 0 ? 'pdf-td-pos pdf-tf-cell' : 'pdf-td-zero pdf-tf-cell'}>
-                          {v > 0 ? v : '—'}
-                        </td>
+        </Box>
+        {reportType === 'workflow' && (
+          <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
+            <Grid item xs={12} sm={6}>
+              <Box component="label" htmlFor="pdf-from" sx={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 1 }}><Calendar size={13} /> Application Date From</Box>
+              <Box component="input" id="pdf-from" type="date" value={dateFrom} min={bounds.min || undefined} max={dateTo || bounds.max || undefined} onChange={e => setDateFrom(e.target.value)} sx={{ width: '100%', mt: 0.5, mb: 1, p: 1, borderRadius: 1, border: '1px solid #e6eaf2' }} />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Box component="label" htmlFor="pdf-to" sx={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 1 }}><Calendar size={13} /> To</Box>
+              <Box component="input" id="pdf-to" type="date" value={dateTo} min={dateFrom || bounds.min || undefined} max={bounds.max || undefined} onChange={e => setDateTo(e.target.value)} sx={{ width: '100%', mt: 0.5, mb: 1, p: 1, borderRadius: 1, border: '1px solid #e6eaf2' }} />
+            </Grid>
+          </Grid>
+        )}
+        <Grid container spacing={2} sx={{ mb: 2 }}>
+          <Grid item xs={6} sm={3}><Box sx={{ fontWeight: 700, fontSize: 18 }}>{filtered.length}</Box><Box sx={{ color: '#63708a', fontSize: 13 }}>Cases in Range</Box></Grid>
+          <Grid item xs={6} sm={3}><Box sx={{ fontWeight: 700, fontSize: 18 }}>{branches.length}</Box><Box sx={{ color: '#63708a', fontSize: 13 }}>Branches</Box></Grid>
+          <Grid item xs={6} sm={3}><Box sx={{ fontWeight: 700, fontSize: 18 }}>{ALL_STEPS.length}</Box><Box sx={{ color: '#63708a', fontSize: 13 }}>Workflow Stages</Box></Grid>
+          <Grid item xs={6} sm={3}><Box sx={{ fontWeight: 700, fontSize: 18 }}>{branches.includes(UNKNOWN_BRANCH_LABEL) ? 'Yes' : 'No'}</Box><Box sx={{ color: '#63708a', fontSize: 13 }}>Unknown Branch Found</Box></Grid>
+        </Grid>
+        <Box sx={{ mb: 2 }}>
+          <Box sx={{ fontWeight: 600, mb: 0.5 }}>Data Preview <span style={{ color: '#63708a', fontWeight: 400, fontSize: 13 }}>(Scroll horizontally to see all columns)</span></Box>
+          <Box sx={{ overflowX: 'auto', borderRadius: 2, background: '#f6f9ff', p: 1 }}>
+            <table className="pdf-preview-tbl" style={{ minWidth: 600 }}>
+              <thead>
+                <tr>
+                  <th className="pdf-th-branch">Branch</th>
+                  {reportType === 'workflow'
+                    ? REPORT_STEPS.map(s => (
+                        <th key={s.id} title={s.fullName}>{s.label}</th>
+                      ))
+                    : LOS_DAYS_RANGES.map((b, idx) => (
+                        <th key={idx}>{b.label}</th>
                       ))}
-                      <td className="pdf-td-rowtotal pdf-tf-cell">{matrixGrandTotal}</td>
-                    </tr>
-                  </tfoot>
+                  <th className="pdf-th-total">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {branches.length === 0 ? (
+                  <tr>
+                    <td colSpan={(reportType === 'workflow' ? REPORT_STEPS.length : LOS_DAYS_RANGES.length) + 2} className="pdf-empty-cell">
+                      No data in selected date range
+                    </td>
+                  </tr>
+                ) : (
+                  sortedBranches.map(branch => {
+                    const rowTotal = branchCaseTotals[branch] ?? 0;
+                    return (
+                      <tr key={branch}>
+                        <td className="pdf-td-branch">{branch}</td>
+                        {reportType === 'workflow'
+                          ? REPORT_STEPS.map(s => {
+                              const v = matrix[branch]?.[s.id] ?? 0;
+                              return (
+                                <td key={s.id} className={v > 0 ? 'pdf-td-pos' : 'pdf-td-zero'}>
+                                  {v > 0 ? v : '—'}
+                                </td>
+                              );
+                            })
+                          : LOS_DAYS_RANGES.map((b, idx) => {
+                              const v = matrix[branch]?.[idx] ?? 0;
+                              return (
+                                <td key={idx} className={v > 0 ? 'pdf-td-pos' : 'pdf-td-zero'}>
+                                  {v > 0 ? v : '—'}
+                                </td>
+                              );
+                            })}
+                        <td className={rowTotal <= 5 ? 'pdf-td-rowtotal pdf-td-rowtotal-low' : 'pdf-td-rowtotal'}>{rowTotal}</td>
+                      </tr>
+                    );
+                  })
                 )}
-              </table>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Footer ── */}
-        <div className="pdf-modal-footer responsive-pdf-modal-footer">
-          <span className="pdf-footer-note responsive-pdf-footer-note">Landscape A4  ·  Chipmong Bank branded</span>
-          <div className="pdf-footer-actions responsive-pdf-footer-actions">
-            <button className="pdf-cancel-btn responsive-pdf-cancel-btn" onClick={onClose}>Cancel</button>
-            <button
-              className="pdf-generate-btn responsive-pdf-generate-btn"
-              onClick={handleGenerate}
-              disabled={generating || branches.length === 0}
-            >
-              {generating
-                ? <><Loader2 size={15} className="pdf-spin-icon" /> Generating…</>
-                : <><FileDown size={15} /> Generate PDF</>}
-            </button>
-          </div>
-        </div>
-
-      </div>
-    </div>
+              </tbody>
+              {branches.length > 0 && (
+                <tfoot>
+                  <tr>
+                    <td className="pdf-tf-label">Total</td>
+                    {colTotals.map((v, i) => (
+                      <td key={i} className={v > 0 ? 'pdf-td-pos pdf-tf-cell' : 'pdf-td-zero pdf-tf-cell'}>
+                        {v > 0 ? v : '—'}
+                      </td>
+                    ))}
+                    <td className="pdf-td-rowtotal pdf-tf-cell">{matrixGrandTotal}</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </Box>
+        </Box>
+      </DialogContent>
+      <DialogActions sx={{ p: 2, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
+        <Box sx={{ flex: 1, textAlign: 'left', color: '#63708a', fontSize: 14 }}>Landscape A4  ·  Chipmong Bank branded</Box>
+        <Button onClick={onClose} variant="outlined" color="primary" sx={{ minWidth: 120 }}>Cancel</Button>
+        <Button onClick={handleGenerate} variant="contained" color="primary" disabled={generating || branches.length === 0} sx={{ minWidth: 160 }}>
+          {generating
+            ? <><Loader2 size={15} className="pdf-spin-icon" /> Generating…</>
+            : <><FileDown size={15} /> Generate PDF</>}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
@@ -8,6 +9,9 @@ import {
   FileDown,
   RefreshCw,
 } from 'lucide-react';
+import Box from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
+import Button from '@mui/material/Button';
 import FilterBar from './components/FilterBar.jsx';
 import CaseTable from './components/CaseTable.jsx';
 import TrendLineChart from './components/TrendLineChart.jsx';
@@ -100,96 +104,7 @@ export default function App() {
     }
   }
 
-  useEffect(() => { loadData(); }, []);
-
-  useEffect(() => {
-    if (!toast) return undefined;
-    const timer = window.setTimeout(() => setToast(''), 3500);
-    return () => window.clearTimeout(timer);
-  }, [toast]);
-
-  const filtered = useMemo(() => {
-    const search = filters.search.trim().toLowerCase();
-    const rows = cases.filter(row => {
-      const searchable = [
-        row.APPLICATION_NUMBER_ID,
-        row.CUSTOMER_NAME,
-        row.BRANCH_NAME,
-        row.RM_NAME,
-        row.APPLICATION_SOURCE,
-        row.PRODUCTS,
-        row.STATUS,
-        getRemarkText(row),
-      ]
-        .join(' ')
-        .toLowerCase();
-
-      return (!search || searchable.includes(search))
-        && (filters.status === 'All' || statusMatches(row.STATUS, [filters.status]))
-        && (filters.branch === 'All' || row.BRANCH_NAME === filters.branch)
-        && (filters.rm === 'All' || getRmName(row) === filters.rm)
-        && (filters.product === 'All' || row.PRODUCTS === filters.product);
-    });
-
-    if (filters.losSort === 'asc') {
-      return [...rows].sort((a, b) => getLosDays(a) - getLosDays(b));
-    }
-
-    if (filters.losSort === 'desc') {
-      return [...rows].sort((a, b) => getLosDays(b) - getLosDays(a));
-    }
-
-    return rows;
-  }, [cases, filters]);
-
-  // Cascading filter options — each set of options is derived from cases
-  // filtered by all OTHER active filters, so dropdowns only show valid choices.
-  const baseFilter = (row, search) => {
-    const searchable = [
-      row.APPLICATION_NUMBER_ID,
-      row.CUSTOMER_NAME,
-      row.BRANCH_NAME,
-      row.RM_NAME,
-      row.APPLICATION_SOURCE,
-      row.PRODUCTS,
-      row.STATUS,
-      getRemarkText(row),
-    ].join(' ').toLowerCase();
-    return !search || searchable.includes(search);
-  };
-
-  const branches = useMemo(() => {
-    const search = filters.search.trim().toLowerCase();
-    const pool = cases.filter(row =>
-      baseFilter(row, search)
-      && (filters.status === 'All' || statusMatches(row.STATUS, [filters.status]))
-      && (filters.rm === 'All' || getRmName(row) === filters.rm)
-      && (filters.product === 'All' || row.PRODUCTS === filters.product)
-    );
-    return unique(pool.map(row => row.BRANCH_NAME));
-  }, [cases, filters.search, filters.status, filters.rm, filters.product]);
-
-  const products = useMemo(() => {
-    const search = filters.search.trim().toLowerCase();
-    const pool = cases.filter(row =>
-      baseFilter(row, search)
-      && (filters.status === 'All' || statusMatches(row.STATUS, [filters.status]))
-      && (filters.branch === 'All' || row.BRANCH_NAME === filters.branch)
-      && (filters.rm === 'All' || getRmName(row) === filters.rm)
-    );
-    return unique(pool.map(row => row.PRODUCTS));
-  }, [cases, filters.search, filters.status, filters.branch, filters.rm]);
-
-  const rms = useMemo(() => {
-    const search = filters.search.trim().toLowerCase();
-    const pool = cases.filter(row =>
-      baseFilter(row, search)
-      && (filters.status === 'All' || statusMatches(row.STATUS, [filters.status]))
-      && (filters.branch === 'All' || row.BRANCH_NAME === filters.branch)
-      && (filters.product === 'All' || row.PRODUCTS === filters.product)
-    );
-    return unique(pool.map(getRmName));
-  }, [cases, filters.search, filters.status, filters.branch, filters.product]);
+  // ...existing code...
 
   const statuses = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
