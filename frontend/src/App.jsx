@@ -18,15 +18,9 @@ import { fetchLosCases, saveCaseRemark } from './services/sheetApi.js';
 import { getLosDays } from './utils/dateUtils.js';
 import { getRemarkText } from './utils/remarks.js';
 import { normalizeStatus, statusOrder, statusMatches } from './utils/statusUtils.js';
+import { isReportableLosCase } from './utils/caseFilters.js';
 import ExportPdfModal from './components/ExportPdfModal.jsx';
 import RmActivityDashboard from './components/RmActivityDashboard.jsx';
-
-const EXCLUDED_PRODUCTS = new Set(['Credit Card', 'Credit Card Against TD']);
-const EXCLUDED_LOAN_TYPES = new Set(['Restructure', 'Other Request']);
-
-function hasExcludedPurpose(purpose) {
-  return /\bOD\b/.test(String(purpose || ''));
-}
 
 function getRmName(row) {
   return String(row.RM_NAME || row.RM_Name || row.rm_name || '').trim();
@@ -95,17 +89,9 @@ export default function App() {
       setLoading(true);
       setError('');
       const result = await fetchLosCases();
-      const removedByPurpose = [];
-      const allowed = (result.data || []).filter(row => {
-        const purposeExcluded = hasExcludedPurpose(row.PURPOSE);
-        if (purposeExcluded) removedByPurpose.push(row);
-
-        return !EXCLUDED_PRODUCTS.has(row.PRODUCTS)
-          && !EXCLUDED_LOAN_TYPES.has(row.LOAN_TYPE)
-          && !purposeExcluded;
-      });
+      const allowed = (result.data || []).filter(isReportableLosCase);
       setCases(allowed);
-      setExcludedPurposeCases(removedByPurpose);
+      setExcludedPurposeCases([]);
       setSource(result.source);
     } catch (err) {
       setError(err.message || 'Failed to fetch Google Sheet data');

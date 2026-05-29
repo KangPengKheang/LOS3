@@ -4,6 +4,7 @@ import { statusMatches } from '../utils/statusUtils.js';
 import { parseDate } from '../utils/dateUtils.js';
 import { FLOW_STEPS, SPECIAL_STEPS } from './WorkflowTracker.jsx';
 import { BRANCH_MASTER_LIST } from '../data/branchMasterList.js';
+import { isReportableLosCase } from '../utils/caseFilters.js';
 import chipMongBankLogo from '../assets/chip-mong-bank-logo.png.jpg';
 
 // All workflow columns in PDF order: pipeline steps then special outcomes
@@ -84,51 +85,26 @@ function getRowBranchCode(row) {
 }
 
 function buildOrderedBranches(filteredCases) {
-  // Inactive branch detection by both name and code from master list
-  const inactiveNames = new Set();
-  const inactiveCodes = new Set();
-  const masterInactiveBranches = [];
-  BRANCH_MASTER_LIST.forEach(branch => {
-    if (branch.status === 'inactive') {
-      inactiveNames.add(normalizeName(branch.name));
-      if (branch.code) inactiveCodes.add(normalizeCode(branch.code));
-      masterInactiveBranches.push(branch.name);
-    }
-  });
-
-  // Raw branch names exactly as they appear in data — same as dashboard table
+  // Raw branch names exactly as they appear in data, matching the dashboard table.
   const rawBranches = [...new Set(
     filteredCases
       .map(row => normalizeBranchName(row.BRANCH_NAME))
   )].sort((a, b) => a.localeCompare(b));
 
-  // Filter out inactive branches by name or code
-  const activeBranches = rawBranches.filter(branchName => {
-    if (inactiveNames.has(normalizeName(branchName))) return false;
-    const sampleRow = filteredCases.find(r => String(r.BRANCH_NAME || '').trim() === branchName);
-    const code = sampleRow ? getRowBranchCode(sampleRow) : '';
-    if (code && inactiveCodes.has(code)) return false;
-    return true;
-  });
-
   // Track what's already covered by code and normalized name
-  const activeBranchNormNames = new Set(activeBranches.map(normalizeName));
-  const activeBranchCodes = new Set(
-    filteredCases
-      .filter(row => activeBranches.includes(String(row.BRANCH_NAME || '').trim()))
-      .map(getRowBranchCode)
-      .filter(Boolean)
-  );
+  const reportBranches = [...rawBranches];
+  const reportBranchNormNames = new Set(reportBranches.map(normalizeName));
+  const reportBranchCodes = new Set(filteredCases.map(getRowBranchCode).filter(Boolean));
 
-  // Append missing master active branches as zero rows at bottom
+  // Append missing master active branches as zero rows at bottom.
   BRANCH_MASTER_LIST.forEach(branch => {
     if (branch.status === 'inactive') return;
-    if (activeBranchNormNames.has(normalizeName(branch.name))) return;
-    if (branch.code && activeBranchCodes.has(normalizeCode(branch.code))) return;
-    activeBranches.push(branch.name);
+    if (reportBranchNormNames.has(normalizeName(branch.name))) return;
+    if (branch.code && reportBranchCodes.has(normalizeCode(branch.code))) return;
+    reportBranches.push(branch.name);
   });
 
-  return { branches: activeBranches, inactiveBranches: masterInactiveBranches };
+  return { branches: reportBranches, inactiveBranches: [] };
 }
 
 function fmtDate(iso) {
@@ -426,15 +402,16 @@ export default function ExportPdfModal({ cases, onClose }) {
   }, [onClose]);
 
   const filtered = useMemo(() => {
-    if (reportType === 'losdays') return cases;
-    if (!dateFrom && !dateTo) return cases;
+    const reportableCases = (cases || []).filter(isReportableLosCase);
+    if (reportType === 'losdays') return reportableCases;
+    if (!dateFrom && !dateTo) return reportableCases;
 
     const from = parseDate(dateFrom);
     const to = parseDate(dateTo);
     if (from) from.setHours(0, 0, 0, 0);
     if (to) to.setHours(23, 59, 59, 999);
 
-    return cases.filter(row => {
+    return reportableCases.filter(row => {
       const d = getCaseDate(row);
       if (!d) return true;
       if (from && d < from) return false;
@@ -457,39 +434,14 @@ export default function ExportPdfModal({ cases, onClose }) {
     { label: '50 - 100', min: 51, max: 100 },
     { label: 'More than 100', min: 101, max: Infinity },
   ];
-  const ACTIVE_STATUSES = [
-    ...FLOW_STEPS.flatMap(s => s.statuses.map(st => st.toLowerCase()))
-  ];
-  const SPECIAL_STATUSES = ['returned', 'cancelled', 'rejected', 'returned to rm', 'cancel', 'reject'];
-  function isActiveStatus(status) {
-    if (!status) return false;
-    const s = String(status).toLowerCase();
-    return ACTIVE_STATUSES.includes(s) && !SPECIAL_STATUSES.includes(s);
-  }
   function getLosDaysValue(row, refDate) {
     const appDate = parseDate(row.APPLICATION_DATE || row.ISSUE_DATE || row.REPORT_DATE || row.CREATED_AT);
     if (!appDate) return 0;
     return Math.floor((refDate - appDate) / (1000 * 60 * 60 * 24));
   }
-  const EXCLUDED_PURPOSES = [
-    'od',
-    'dd',
-    'credit card',
-    'credit card against td',
-    'other request',
-    'restructure loan',
-  ];
-  function isExcludedPurpose(purpose) {
-    if (!purpose) return false;
-    const p = String(purpose).toLowerCase().replace(/\s+/g, ' ');
-    return EXCLUDED_PURPOSES.some(ex => p.includes(ex));
-  }
-
   const matrix = useMemo(() => {
-    // Exclude cases with specified purposes for both report types
-    const filteredCases = cases.filter(row => !isExcludedPurpose(row.PURPOSE));
-    if (reportType === 'workflow') return buildMatrix(filteredCases, branches);
-    // LOS Days matrix: count all cases that are active (not special) as of end of selected range, and not excluded by purpose
+    if (reportType === 'workflow') return buildMatrix(filtered, branches);
+    // LOS Days matrix: bucket every reportable case as of the selected end date.
     const branchSet = new Set(branches);
     const counts = {};
     branches.forEach(b => {
@@ -497,11 +449,9 @@ export default function ExportPdfModal({ cases, onClose }) {
     });
     // Use end of range (or today) as reference
     const to = dateTo ? parseDate(dateTo) : new Date();
-    filteredCases.forEach(row => {
+    filtered.forEach(row => {
       const branch = normalizeBranchName(row.BRANCH_NAME);
       if (!branchSet.has(branch)) return;
-      const status = String(row.STATUS || '').toLowerCase();
-      if (!isActiveStatus(status)) return;
       const appDate = parseDate(row.APPLICATION_DATE || row.ISSUE_DATE || row.REPORT_DATE || row.CREATED_AT);
       if (!appDate) return;
       // Only count if LOS was created before or on the end of the range
@@ -511,26 +461,17 @@ export default function ExportPdfModal({ cases, onClose }) {
       if (idx !== -1) counts[branch][idx]++;
     });
     return counts;
-  }, [filtered, branches, reportType, cases, dateTo]);
+  }, [filtered, branches, reportType, dateTo]);
 
   const branchCaseTotals = useMemo(() => {
     const totals = {};
-    branches.forEach(branch => { totals[branch] = 0; });
-    if (reportType === 'workflow') {
-      filtered.forEach(row => {
-        const branch = normalizeBranchName(row.BRANCH_NAME);
-        if (!totals.hasOwnProperty(branch)) return;
-        totals[branch] += 1;
-      });
-    } else {
-      filtered.forEach(row => {
-        const branch = normalizeBranchName(row.BRANCH_NAME);
-        if (!totals.hasOwnProperty(branch)) return;
-        totals[branch] += 1;
-      });
-    }
+    branches.forEach(branch => {
+      totals[branch] = reportType === 'workflow'
+        ? REPORT_STEPS.reduce((sum, step) => sum + (matrix[branch]?.[step.id] ?? 0), 0)
+        : LOS_DAYS_RANGES.reduce((sum, _, idx) => sum + (matrix[branch]?.[idx] ?? 0), 0);
+    });
     return totals;
-  }, [filtered, branches, reportType]);
+  }, [branches, matrix, reportType]);
 
   const sortedBranches = useMemo(() => (
     [...branches].sort((a, b) => {
@@ -799,7 +740,7 @@ export default function ExportPdfModal({ cases, onClose }) {
             {reportType === 'workflow' ? (
               <>Generates a <strong>landscape A4 PDF</strong> with all branches as rows and each workflow stage as columns, showing case counts for the selected application date range.</>
             ) : (
-              <>Generates a <strong>landscape A4 PDF</strong> with all branches as rows and LOS Days buckets as columns, showing active cases by LOS days in each range.</>
+              <>Generates a <strong>landscape A4 PDF</strong> with all branches as rows and LOS Days buckets as columns, showing reportable cases by LOS days in each range.</>
             )}
           </p>
 
