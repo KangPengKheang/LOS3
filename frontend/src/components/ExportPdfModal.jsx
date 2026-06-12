@@ -6,7 +6,8 @@ import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
-import { X, FileDown, Calendar, Loader2 } from 'lucide-react';
+import { X, FileDown, Calendar, Loader2, Send } from 'lucide-react';
+import { sendPdfToTelegram } from '../utils/telegramExport.js';
 import { statusMatches } from '../utils/statusUtils.js';
 import { parseDate } from '../utils/dateUtils.js';
 import { FLOW_STEPS, SPECIAL_STEPS } from './WorkflowTracker.jsx';
@@ -389,7 +390,7 @@ function generatePdf(jsPDF, autoTable, cases, branches, inactiveBranches, matrix
   }
 
   const ds = `${(dateFrom || 'all').replace(/-/g, '')}to${(dateTo || 'all').replace(/-/g, '')}`;
-  doc.save(`LOS_Branch_Workflow_${ds}.pdf`);
+  return { doc, filename: `LOS_Branch_Workflow_${ds}.pdf` };
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -399,6 +400,8 @@ export default function ExportPdfModal({ cases, onClose }) {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [sendingTelegram, setSendingTelegram] = useState(false);
+  const [telegramStatus, setTelegramStatus] = useState(null);
 
   // Close on Escape
   useEffect(() => {
@@ -507,15 +510,44 @@ export default function ExportPdfModal({ cases, onClose }) {
       loadImageDataUrl(chipMongBankLogo),
     ]).then(([jsPDF, autoTable, logoMeta]) => {
       try {
-        if (reportType === 'workflow') {
-          generatePdf(jsPDF, autoTable, filtered, sortedBranches, inactiveBranches, matrix, branchCaseTotals, dateFrom, dateTo, logoMeta);
-        } else {
-          generateLosDaysPdf(jsPDF, autoTable, filtered, sortedBranches, inactiveBranches, matrix, branchCaseTotals, dateFrom, dateTo, logoMeta);
-        }
+        const { doc, filename } = reportType === 'workflow'
+          ? generatePdf(jsPDF, autoTable, filtered, sortedBranches, inactiveBranches, matrix, branchCaseTotals, dateFrom, dateTo, logoMeta)
+          : generateLosDaysPdf(jsPDF, autoTable, filtered, sortedBranches, inactiveBranches, matrix, branchCaseTotals, dateFrom, dateTo, logoMeta);
+        doc.save(filename);
       } finally {
         setGenerating(false);
       }
     }).catch(() => setGenerating(false));
+  }
+
+  function handleSendTelegram() {
+    setSendingTelegram(true);
+    setTelegramStatus(null);
+    Promise.all([
+      import('jspdf').then(m => m.jsPDF),
+      import('jspdf-autotable').then(m => m.default),
+      loadImageDataUrl(chipMongBankLogo),
+    ]).then(async ([jsPDF, autoTable, logoMeta]) => {
+      try {
+        const { doc, filename } = reportType === 'workflow'
+          ? generatePdf(jsPDF, autoTable, filtered, sortedBranches, inactiveBranches, matrix, branchCaseTotals, dateFrom, dateTo, logoMeta)
+          : generateLosDaysPdf(jsPDF, autoTable, filtered, sortedBranches, inactiveBranches, matrix, branchCaseTotals, dateFrom, dateTo, logoMeta);
+
+        const caption = reportType === 'workflow'
+          ? `LOS Workflow Summary Report\nApplication Date: ${fmtDate(dateFrom)} - ${fmtDate(dateTo)}`
+          : `LOS Days Summary Report\nApplication Date: ${fmtDate(dateFrom)} - ${fmtDate(dateTo)}`;
+
+        await sendPdfToTelegram(doc, filename, caption);
+        setTelegramStatus({ type: 'success', message: 'Sent to Telegram successfully.' });
+      } catch (err) {
+        setTelegramStatus({ type: 'error', message: err.message || 'Failed to send to Telegram.' });
+      } finally {
+        setSendingTelegram(false);
+      }
+    }).catch((err) => {
+      setSendingTelegram(false);
+      setTelegramStatus({ type: 'error', message: err.message || 'Failed to send to Telegram.' });
+    });
   }
 
   // --- PDF generator for LOS Days ---
@@ -696,7 +728,7 @@ export default function ExportPdfModal({ cases, onClose }) {
     }
 
     const ds = `${(dateFrom || 'all').replace(/-/g, '')}to${(dateTo || 'all').replace(/-/g, '')}`;
-    doc.save(`LOS_Branch_LOSDays_${ds}.pdf`);
+    return { doc, filename: `LOS_Branch_LOSDays_${ds}.pdf` };
   }
 
   return (
@@ -837,10 +869,32 @@ export default function ExportPdfModal({ cases, onClose }) {
           </Box>
         </Box>
       </DialogContent>
-      <DialogActions sx={{ p: 2, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
-        <Box sx={{ flex: 1, textAlign: 'left', color: '#63708a', fontSize: 14 }}>Landscape A4  ·  Chipmong Bank branded</Box>
+      <DialogActions sx={{ p: 2, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: { xs: 'stretch', sm: 'center' } }}>
+        <Box sx={{ flex: 1, textAlign: 'left', color: '#63708a', fontSize: 14 }}>
+          Landscape A4  ·  Chipmong Bank branded
+          {telegramStatus && (
+            <Box sx={{ mt: 0.5, color: telegramStatus.type === 'success' ? `rgb(${CM.green.join(',')})` : `rgb(${CM.danger.join(',')})`, fontWeight: 600 }}>
+              {telegramStatus.message}
+            </Box>
+          )}
+        </Box>
         <Button onClick={onClose} variant="outlined" color="primary" sx={{ minWidth: 120 }}>Cancel</Button>
-        <Button onClick={handleGenerate} variant="contained" color="primary" disabled={generating || branches.length === 0} sx={{ minWidth: 160 }}>
+        <Button
+          onClick={handleSendTelegram}
+          variant="outlined"
+          disabled={sendingTelegram || generating || branches.length === 0}
+          sx={{
+            minWidth: 160,
+            color: '#229ED9',
+            borderColor: '#229ED9',
+            '&:hover': { borderColor: '#1b87bd', background: 'rgba(34,158,217,0.08)' },
+          }}
+        >
+          {sendingTelegram
+            ? <><Loader2 size={15} className="pdf-spin-icon" /> Sending…</>
+            : <><Send size={15} /> Send to Telegram</>}
+        </Button>
+        <Button onClick={handleGenerate} variant="contained" color="primary" disabled={generating || sendingTelegram || branches.length === 0} sx={{ minWidth: 160 }}>
           {generating
             ? <><Loader2 size={15} className="pdf-spin-icon" /> Generating…</>
             : <><FileDown size={15} /> Generate PDF</>}
