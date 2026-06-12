@@ -533,9 +533,33 @@ export default function ExportPdfModal({ cases, onClose }) {
           ? generatePdf(jsPDF, autoTable, filtered, sortedBranches, inactiveBranches, matrix, branchCaseTotals, dateFrom, dateTo, logoMeta)
           : generateLosDaysPdf(jsPDF, autoTable, filtered, sortedBranches, inactiveBranches, matrix, branchCaseTotals, dateFrom, dateTo, logoMeta);
 
-        const caption = reportType === 'workflow'
-          ? `LOS Workflow Summary Report\nApplication Date: ${fmtDate(dateFrom)} - ${fmtDate(dateTo)}`
-          : `LOS Days Summary Report\nApplication Date: ${fmtDate(dateFrom)} - ${fmtDate(dateTo)}`;
+        const summaryLines = reportType === 'workflow'
+          ? REPORT_STEPS
+              .map((s, idx) => ({ label: s.label, value: colTotals[idx] }))
+              .filter(item => item.value > 0)
+              .map(item => `${item.label} : ${item.value} case${item.value === 1 ? '' : 's'}`)
+          : LOS_DAYS_RANGES
+              .map((b, idx) => ({ label: b.label, value: colTotals[idx] }))
+              .filter(item => item.value > 0)
+              .map(item => `${item.label} : ${item.value} case${item.value === 1 ? '' : 's'}`);
+
+        const reportTitle = reportType === 'workflow' ? 'LOS Workflow Summary Report' : 'LOS Days Summary Report';
+        const summaryLabel = reportType === 'workflow' ? 'Case Summary by Workflow Stage' : 'Case Summary by LOS Days';
+
+        const caption = [
+          'Dear Team,',
+          '',
+          'We are from the Business Performance and Data Analyst Team.',
+          '',
+          `Please find attached the ${reportTitle} for the period ${fmtDate(dateFrom)} - ${fmtDate(dateTo)}.`,
+          '',
+          `${summaryLabel}:`,
+          ...(summaryLines.length > 0 ? summaryLines : ['No cases found for the selected period.']),
+          '',
+          `Total Cases: ${matrixGrandTotal}`,
+          '',
+          'Thank you.',
+        ].join('\n');
 
         await sendPdfToTelegram(doc, filename, caption);
         setTelegramStatus({ type: 'success', message: 'Sent to Telegram successfully.' });
